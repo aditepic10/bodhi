@@ -39,12 +39,18 @@ function renderEventLine(event: StoredEvent): string {
 			return `- ${event.type}: ${sanitizePromptField(event.metadata.command)} (cwd ${sanitizePromptField(event.metadata.cwd)})`;
 		case "git.commit.created":
 			return `- ${event.type}: ${sanitizePromptField(event.metadata.branch)} ${sanitizePromptField(event.metadata.message)}`;
+		case "git.checkout":
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.from_branch ?? "")} -> ${sanitizePromptField(event.metadata.to_branch ?? "")}`;
+		case "git.merge":
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.merged_branch)} into ${sanitizePromptField(event.metadata.branch ?? "")}`;
+		case "git.rewrite":
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.rewrite_type)} ${String(event.metadata.rewritten_commits)}`;
+		case "ai.prompt":
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.content)}`;
+		case "ai.tool_call":
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.tool_name)} ${sanitizePromptField(event.metadata.target ?? "")}`;
 		case "note.created":
 			return `- ${event.type}: ${sanitizePromptField(event.metadata.content)}`;
-		case "fact.extracted":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.key)} ${sanitizePromptField(event.metadata.value)}`;
-		case "conversation.message":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.role)} ${sanitizePromptField(event.metadata.content)}`;
 	}
 }
 

@@ -4,6 +4,11 @@ import type { BodhiEvent, EventType } from "./events";
 export interface EventFilter {
 	type?: EventType;
 	source?: StoredEvent["source"];
+	repo?: string;
+	branch?: string;
+	tool?: string;
+	thread?: string;
+	cwd?: string;
 	after?: number;
 	before?: number;
 	limit?: number;

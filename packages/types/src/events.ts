@@ -1,12 +1,40 @@
 import { z } from "zod";
 
+export const GitStateSchema = z.enum([
+	"normal",
+	"detached",
+	"merging",
+	"rebasing",
+	"cherry-picking",
+	"reverting",
+	"bisecting",
+]);
+
+export const ActivityContextSchema = z
+	.object({
+		repo_id: z.string().min(1).optional(),
+		worktree_root: z.string().min(1).optional(),
+		branch: z.string().min(1).optional(),
+		head_sha: z.string().min(7).max(40).optional(),
+		git_state: GitStateSchema.optional(),
+		cwd: z.string().min(1).optional(),
+		relative_cwd: z.string().min(1).optional(),
+		terminal_session: z.string().min(1).optional(),
+		tool: z.string().min(1).optional(),
+		thread_id: z.string().min(1).optional(),
+	})
+	.strict();
+
 export const EventTypeSchema = z.enum([
 	"shell.command.executed",
 	"shell.command.started",
 	"git.commit.created",
+	"git.checkout",
+	"git.merge",
+	"git.rewrite",
+	"ai.prompt",
+	"ai.tool_call",
 	"note.created",
-	"fact.extracted",
-	"conversation.message",
 ]);
 
 export const EventEnvelopeSchema = z.object({
@@ -16,6 +44,7 @@ export const EventEnvelopeSchema = z.object({
 	schema_version: z.number().int().positive().optional(),
 	producer_version: z.string().min(1).optional(),
 	created_at: z.number().int().optional(),
+	context: ActivityContextSchema.optional(),
 });
 
 export const ShellCommandExecutedSchema = EventEnvelopeSchema.extend({
@@ -45,6 +74,37 @@ export const GitCommitCreatedSchema = EventEnvelopeSchema.extend({
 		message: z.string(),
 		branch: z.string(),
 		files_changed: z.number().int().min(0),
+		files: z.array(z.string()).optional(),
+		insertions: z.number().int().min(0).optional(),
+		deletions: z.number().int().min(0).optional(),
+	}),
+});
+
+export const GitCheckoutSchema = EventEnvelopeSchema.extend({
+	type: z.literal("git.checkout"),
+	metadata: z.object({
+		from_branch: z.string().optional(),
+		to_branch: z.string().optional(),
+		from_sha: z.string().optional(),
+		to_sha: z.string().optional(),
+		is_file_checkout: z.boolean().optional(),
+	}),
+});
+
+export const GitMergeSchema = EventEnvelopeSchema.extend({
+	type: z.literal("git.merge"),
+	metadata: z.object({
+		branch: z.string().optional(),
+		merged_branch: z.string(),
+		is_squash: z.boolean().optional(),
+	}),
+});
+
+export const GitRewriteSchema = EventEnvelopeSchema.extend({
+	type: z.literal("git.rewrite"),
+	metadata: z.object({
+		rewrite_type: z.enum(["rebase", "amend"]),
+		rewritten_commits: z.number().int().min(1),
 	}),
 });
 
@@ -52,26 +112,22 @@ export const NoteCreatedSchema = EventEnvelopeSchema.extend({
 	type: z.literal("note.created"),
 	metadata: z.object({
 		content: z.string(),
-		tags: z.array(z.string()).optional(),
 	}),
 });
 
-export const FactExtractedEventSchema = EventEnvelopeSchema.extend({
-	type: z.literal("fact.extracted"),
+export const AiPromptSchema = EventEnvelopeSchema.extend({
+	type: z.literal("ai.prompt"),
 	metadata: z.object({
-		key: z.string(),
-		value: z.string(),
-		source_event_id: z.string(),
-		confidence: z.number().min(0).max(1),
-	}),
-});
-
-export const ConversationMessageSchema = EventEnvelopeSchema.extend({
-	type: z.literal("conversation.message"),
-	metadata: z.object({
-		role: z.enum(["user", "assistant", "system"]),
 		content: z.string(),
-		session_id: z.string(),
+	}),
+});
+
+export const AiToolCallSchema = EventEnvelopeSchema.extend({
+	type: z.literal("ai.tool_call"),
+	metadata: z.object({
+		tool_name: z.string(),
+		target: z.string().optional(),
+		description: z.string().optional(),
 	}),
 });
 
@@ -79,9 +135,12 @@ export const BodhiEventSchema = z.discriminatedUnion("type", [
 	ShellCommandExecutedSchema,
 	ShellCommandStartedSchema,
 	GitCommitCreatedSchema,
+	GitCheckoutSchema,
+	GitMergeSchema,
+	GitRewriteSchema,
+	AiPromptSchema,
+	AiToolCallSchema,
 	NoteCreatedSchema,
-	FactExtractedEventSchema,
-	ConversationMessageSchema,
 ]);
 
 export const IngestEventSchema = z.intersection(
@@ -92,12 +151,17 @@ export const IngestEventSchema = z.intersection(
 );
 
 export type EventType = z.infer<typeof EventTypeSchema>;
+export type ActivityContext = z.infer<typeof ActivityContextSchema>;
+export type GitState = z.infer<typeof GitStateSchema>;
 export type EventEnvelope = z.infer<typeof EventEnvelopeSchema>;
 export type ShellCommandExecutedEvent = z.infer<typeof ShellCommandExecutedSchema>;
 export type ShellCommandStartedEvent = z.infer<typeof ShellCommandStartedSchema>;
 export type GitCommitCreatedEvent = z.infer<typeof GitCommitCreatedSchema>;
+export type GitCheckoutEvent = z.infer<typeof GitCheckoutSchema>;
+export type GitMergeEvent = z.infer<typeof GitMergeSchema>;
+export type GitRewriteEvent = z.infer<typeof GitRewriteSchema>;
 export type NoteCreatedEvent = z.infer<typeof NoteCreatedSchema>;
-export type FactExtractedEvent = z.infer<typeof FactExtractedEventSchema>;
-export type ConversationMessageEvent = z.infer<typeof ConversationMessageSchema>;
+export type AiPromptEvent = z.infer<typeof AiPromptSchema>;
+export type AiToolCallEvent = z.infer<typeof AiToolCallSchema>;
 export type BodhiEvent = z.infer<typeof BodhiEventSchema>;
 export type IngestEvent = z.infer<typeof IngestEventSchema>;

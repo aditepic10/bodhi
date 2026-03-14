@@ -1,33 +1,24 @@
 import type { Database } from "bun:sqlite";
-import type { BodhiEvent, Fact, FactCreatedBy, FactStatus, StoredEvent } from "@bodhi/types";
+import type {
+	ActivityContext,
+	BodhiEvent,
+	Fact,
+	FactCreatedBy,
+	FactStatus,
+	StoredEvent,
+} from "@bodhi/types";
+import {
+	FactCreatedBySchema,
+	FactStatusSchema,
+	GitStateSchema,
+	StoredEventSchema,
+} from "@bodhi/types";
 
-import type { FactRow, PipelineLike, StoredEventRow } from "./types";
+import type { EventContextInsert, EventContextRow, FactRow, PipelineLike } from "./types";
 import { DEFAULT_LIMIT, MAX_LIMIT } from "./types";
 
 export function clampLimit(limit?: number): number {
 	return Math.min(Math.max(limit ?? DEFAULT_LIMIT, 1), MAX_LIMIT);
-}
-
-function deriveEventContent(event: BodhiEvent): string {
-	switch (event.type) {
-		case "shell.command.executed":
-		case "shell.command.started":
-			return event.metadata.command;
-		case "git.commit.created":
-			return `${event.metadata.branch} ${event.metadata.message}`;
-		case "note.created":
-			return event.metadata.content;
-		case "fact.extracted":
-			return `${event.metadata.key} ${event.metadata.value}`;
-		case "conversation.message":
-			return event.metadata.content;
-	}
-
-	return "";
-}
-
-export function eventContentForStorage(event: BodhiEvent): string {
-	return deriveEventContent(event);
 }
 
 export function normalizeFtsQuery(query: string): string {
@@ -39,12 +30,18 @@ export function normalizeFtsQuery(query: string): string {
 	return tokens.map((token) => `"${token.replaceAll('"', '""')}"`).join(" OR ");
 }
 
-function inferSource(type: string): StoredEvent["source"] {
+function inferSource(type: BodhiEvent["type"]): StoredEvent["source"] {
 	if (type.startsWith("shell.")) {
 		return "shell";
 	}
 	if (type.startsWith("git.")) {
 		return "git";
+	}
+	if (type.startsWith("ai.")) {
+		return "ai";
+	}
+	if (type === "note.created") {
+		return "manual";
 	}
 	return "api";
 }
@@ -53,22 +50,67 @@ export function sourceForEvent(event: BodhiEvent): StoredEvent["source"] {
 	return inferSource(event.type);
 }
 
-export function mapStoredEvent(row: StoredEventRow): StoredEvent {
-	const metadata = JSON.parse(row.metadata) as StoredEvent["metadata"];
+export function mapContext(row?: EventContextRow | null): ActivityContext | undefined {
+	if (!row) {
+		return undefined;
+	}
+
+	const context: ActivityContext = {};
+	if (row.repo_id) {
+		context.repo_id = row.repo_id;
+	}
+	if (row.worktree_root) {
+		context.worktree_root = row.worktree_root;
+	}
+	if (row.branch) {
+		context.branch = row.branch;
+	}
+	if (row.head_sha) {
+		context.head_sha = row.head_sha;
+	}
+	if (row.git_state) {
+		context.git_state = GitStateSchema.parse(row.git_state);
+	}
+	if (row.cwd) {
+		context.cwd = row.cwd;
+	}
+	if (row.relative_cwd) {
+		context.relative_cwd = row.relative_cwd;
+	}
+	if (row.terminal_session) {
+		context.terminal_session = row.terminal_session;
+	}
+	if (row.tool) {
+		context.tool = row.tool;
+	}
+	if (row.thread_id) {
+		context.thread_id = row.thread_id;
+	}
+
+	return Object.keys(context).length > 0 ? context : undefined;
+}
+
+export function toContextRow(
+	eventId: string,
+	context?: ActivityContext,
+): EventContextInsert | undefined {
+	if (!context) {
+		return undefined;
+	}
+
 	return {
-		type: row.type as BodhiEvent["type"],
-		metadata,
-		id: row.id,
-		event_id: row.event_id,
-		source: row.source as StoredEvent["source"],
-		session_id: row.session_id ?? undefined,
-		machine_id: row.machine_id ?? undefined,
-		schema_version: row.schema_version,
-		producer_version: row.producer_version ?? undefined,
-		created_at: row.created_at,
-		processed_at: row.processed_at ?? undefined,
-		started_at: row.started_at ?? undefined,
-	} as StoredEvent;
+		event_id: eventId,
+		repo_id: context.repo_id ?? null,
+		worktree_root: context.worktree_root ?? null,
+		branch: context.branch ?? null,
+		head_sha: context.head_sha ?? null,
+		git_state: context.git_state ?? null,
+		cwd: context.cwd ?? null,
+		relative_cwd: context.relative_cwd ?? null,
+		terminal_session: context.terminal_session ?? null,
+		tool: context.tool ?? null,
+		thread_id: context.thread_id ?? null,
+	};
 }
 
 export function mapFact(row: FactRow): Fact {
@@ -76,9 +118,9 @@ export function mapFact(row: FactRow): Fact {
 		id: row.id,
 		key: row.key,
 		value: row.value,
-		created_by: row.created_by,
+		created_by: FactCreatedBySchema.parse(row.created_by),
 		source_event_id: row.source_event_id ?? undefined,
-		status: row.status,
+		status: FactStatusSchema.parse(row.status),
 		confidence: row.confidence,
 		schema_version: row.schema_version,
 		supersedes_fact_id: row.supersedes_fact_id ?? undefined,
@@ -115,18 +157,23 @@ export function normalizeFactStatus(
 }
 
 export function redactForEgress(events: StoredEvent[], pipeline: PipelineLike): StoredEvent[] {
-	return events
-		.map((event) => {
-			const redacted = pipeline.process(event);
-			if (!redacted) {
-				return null;
-			}
+	const redactedEvents: StoredEvent[] = [];
 
-			return {
+	for (const event of events) {
+		const redacted = pipeline.process(event);
+		if (!redacted) {
+			continue;
+		}
+
+		redactedEvents.push(
+			StoredEventSchema.parse({
 				...event,
 				...redacted,
+				context: redacted.context,
 				metadata: redacted.metadata,
-			} as StoredEvent;
-		})
-		.filter((event): event is StoredEvent => event !== null);
+			}),
+		);
+	}
+
+	return redactedEvents;
 }

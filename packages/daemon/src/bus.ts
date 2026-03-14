@@ -8,9 +8,12 @@ export interface BusEventMap {
 	"shell.command.executed": BodhiEvent;
 	"shell.command.started": BodhiEvent;
 	"git.commit.created": BodhiEvent;
+	"git.checkout": BodhiEvent;
+	"git.merge": BodhiEvent;
+	"git.rewrite": BodhiEvent;
+	"ai.prompt": BodhiEvent;
+	"ai.tool_call": BodhiEvent;
 	"note.created": BodhiEvent;
-	"fact.extracted": BodhiEvent;
-	"conversation.message": BodhiEvent;
 }
 
 type EventKey = keyof BusEventMap;
@@ -140,7 +143,10 @@ export const captureEventTypes: readonly EventType[] = [
 	"shell.command.executed",
 	"shell.command.started",
 	"git.commit.created",
+	"git.checkout",
+	"git.merge",
+	"git.rewrite",
+	"ai.prompt",
+	"ai.tool_call",
 	"note.created",
-	"fact.extracted",
-	"conversation.message",
 ];

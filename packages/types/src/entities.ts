@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { BodhiEventSchema } from "./events";
+import { ActivityContextSchema, BodhiEventSchema } from "./events";
 
-export const EventSourceSchema = z.enum(["shell", "git", "manual", "api"]);
+export const EventSourceSchema = z.enum(["shell", "git", "manual", "api", "ai"]);
 export const FactCreatedBySchema = z.enum(["intel", "agent", "user", "api"]);
 export const FactStatusSchema = z.enum(["active", "pending", "rejected"]);
 export const ConversationRoleSchema = z.enum(["user", "assistant", "system"]);
@@ -20,6 +20,7 @@ export const StoredEventSchema = z.intersection(
 		created_at: z.number().int(),
 		processed_at: z.number().int().optional(),
 		started_at: z.number().int().optional(),
+		context: ActivityContextSchema.optional(),
 	}),
 );
 
