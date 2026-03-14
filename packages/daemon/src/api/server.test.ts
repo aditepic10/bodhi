@@ -338,25 +338,44 @@ describe("api server workflows", () => {
 	});
 
 	test("agent route returns 503 when no language model is configured", async () => {
-		const { app } = createApiFixture();
+		const originalAnthropicKey = process.env.ANTHROPIC_API_KEY;
+		const originalOpenAiKey = process.env.OPENAI_API_KEY;
+		delete process.env.ANTHROPIC_API_KEY;
+		delete process.env.OPENAI_API_KEY;
 
-		const response = await app.request("http://localhost/agent", {
-			body: JSON.stringify({
-				message: "What commands have I run?",
-			}),
-			headers: {
-				"content-type": "application/json",
-			},
-			method: "POST",
-		});
-		const body = (await response.json()) as {
-			code: string;
-			error: string;
-		};
+		try {
+			const { app } = createApiFixture();
 
-		expect(response.status).toBe(503);
-		expect(body.code).toBe("NO_API_KEY");
-		expect(body.error).toBe("API key not configured");
+			const response = await app.request("http://localhost/agent", {
+				body: JSON.stringify({
+					message: "What commands have I run?",
+				}),
+				headers: {
+					"content-type": "application/json",
+				},
+				method: "POST",
+			});
+			const body = (await response.json()) as {
+				code: string;
+				error: string;
+			};
+
+			expect(response.status).toBe(503);
+			expect(body.code).toBe("NO_API_KEY");
+			expect(body.error).toBe("API key not configured");
+		} finally {
+			if (originalAnthropicKey === undefined) {
+				delete process.env.ANTHROPIC_API_KEY;
+			} else {
+				process.env.ANTHROPIC_API_KEY = originalAnthropicKey;
+			}
+
+			if (originalOpenAiKey === undefined) {
+				delete process.env.OPENAI_API_KEY;
+			} else {
+				process.env.OPENAI_API_KEY = originalOpenAiKey;
+			}
+		}
 	});
 
 	test("agent route streams SSE text deltas when the language model is stubbed", async () => {

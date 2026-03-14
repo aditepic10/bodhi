@@ -16,7 +16,7 @@ export interface BusEventMap {
 type EventKey = keyof BusEventMap;
 type WildcardListener = (event: { type: string; payload: unknown }) => void | Promise<void>;
 type Listener<T> = (event: T) => void | Promise<void>;
-type RegisteredListener = (payload: unknown) => void | Promise<void>;
+type RegisteredExactListener = (payload: BusEventMap[EventKey]) => void | Promise<void>;
 
 export interface EventBus {
 	on<K extends EventKey>(type: K, handler: Listener<BusEventMap[K]>): () => void;
@@ -27,33 +27,52 @@ export interface EventBus {
 }
 
 export function createEventBus(log: Logger): EventBus {
-	const listeners = new Map<string, Set<RegisteredListener>>();
+	const exactListeners = new Map<EventKey, Set<RegisteredExactListener>>();
+	const wildcardListeners = new Set<WildcardListener>();
 
-	const addListener = (type: string, handler: RegisteredListener): (() => void) => {
-		const bucket = listeners.get(type) ?? new Set<RegisteredListener>();
-		bucket.add(handler);
-		listeners.set(type, bucket);
+	const addExactListener = <K extends EventKey>(
+		type: K,
+		handler: Listener<BusEventMap[K]>,
+	): (() => void) => {
+		const bucket = exactListeners.get(type) ?? new Set<RegisteredExactListener>();
+		const registered: RegisteredExactListener = (payload) => handler(payload as BusEventMap[K]);
+		bucket.add(registered);
+		exactListeners.set(type, bucket);
 
 		if (bucket.size > 50) {
 			log.warn("event bus listener threshold exceeded", { type, listeners: bucket.size });
 		}
 
 		return () => {
-			const current = listeners.get(type);
+			const current = exactListeners.get(type);
 			if (!current) {
 				return;
 			}
 
-			current.delete(handler);
+			current.delete(registered);
 			if (current.size === 0) {
-				listeners.delete(type);
+				exactListeners.delete(type);
 			}
 		};
 	};
 
-	const dispatch = (handler: RegisteredListener, payload: unknown, type: string) => {
+	const addWildcardListener = (handler: WildcardListener): (() => void) => {
+		wildcardListeners.add(handler);
+		if (wildcardListeners.size > 50) {
+			log.warn("event bus listener threshold exceeded", {
+				listeners: wildcardListeners.size,
+				type: "*",
+			});
+		}
+
+		return () => {
+			wildcardListeners.delete(handler);
+		};
+	};
+
+	const dispatch = (handler: () => void | Promise<void>, type: string) => {
 		void Promise.resolve()
-			.then(() => handler(payload))
+			.then(handler)
 			.catch((error: unknown) => {
 				log.error("event bus handler failed", {
 					type,
@@ -62,18 +81,23 @@ export function createEventBus(log: Logger): EventBus {
 			});
 	};
 
-	const on: EventBus["on"] = ((
+	function on<K extends EventKey>(type: K, handler: Listener<BusEventMap[K]>): () => void;
+	function on<K extends EventKey>(
+		types: readonly K[],
+		handler: Listener<BusEventMap[K]>,
+	): () => void;
+	function on(type: "*", handler: WildcardListener): () => void;
+	function on(
 		typeOrTypes: EventKey | readonly EventKey[] | "*",
-		handler: unknown,
-	) => {
-		const registered = handler as RegisteredListener;
-
+		handler: WildcardListener | Listener<BusEventMap[EventKey]>,
+	): () => void {
 		if (typeOrTypes === "*") {
-			return addListener("*", registered);
+			return addWildcardListener(handler as WildcardListener);
 		}
 
 		if (Array.isArray(typeOrTypes)) {
-			const unsubscribers = typeOrTypes.map((type) => addListener(type, registered));
+			const typedHandler = handler as Listener<BusEventMap[EventKey]>;
+			const unsubscribers = typeOrTypes.map((type) => addExactListener(type, typedHandler));
 			return () => {
 				for (const unsubscribe of unsubscribers) {
 					unsubscribe();
@@ -81,28 +105,33 @@ export function createEventBus(log: Logger): EventBus {
 			};
 		}
 
-		return addListener(typeOrTypes as EventKey, registered);
-	}) as EventBus["on"];
+		if (typeof typeOrTypes === "string") {
+			return addExactListener(typeOrTypes, handler as Listener<BusEventMap[EventKey]>);
+		}
+
+		return () => {};
+	}
 
 	return {
 		on,
 		emit<K extends EventKey>(type: K, payload: BusEventMap[K]): void {
-			const exact = listeners.get(type);
+			const exact = exactListeners.get(type);
 			if (exact) {
 				for (const handler of exact) {
-					dispatch(handler, payload, type);
+					dispatch(() => handler(payload), type);
 				}
 			}
 
-			const wildcard = listeners.get("*");
-			if (wildcard) {
-				for (const handler of wildcard) {
-					dispatch(handler, { type, payload }, "*");
-				}
+			for (const handler of wildcardListeners) {
+				dispatch(() => handler({ type, payload }), "*");
 			}
 		},
 		listenerCount(type: EventKey | "*"): number {
-			return listeners.get(type)?.size ?? 0;
+			if (type === "*") {
+				return wildcardListeners.size;
+			}
+
+			return exactListeners.get(type)?.size ?? 0;
 		},
 	};
 }

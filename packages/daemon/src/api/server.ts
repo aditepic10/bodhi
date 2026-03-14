@@ -162,9 +162,8 @@ export function startApiServer(
 		api.config.transport === "unix"
 			? Bun.serve({
 					fetch: app.fetch,
-					idleTimeout: 0,
 					unix: api.config.socket_path,
-				} as never)
+				})
 			: Bun.serve({
 					fetch: app.fetch,
 					hostname: api.config.host,

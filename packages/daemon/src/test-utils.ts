@@ -1,6 +1,5 @@
 import type { BodhiConfig, BodhiEvent, Fact, PipelineConfig } from "@bodhi/types";
 import { BodhiConfigSchema } from "@bodhi/types";
-import type { LanguageModel } from "ai";
 
 import { type BusEventMap, createEventBus, type EventBus } from "./bus";
 import { createLogger } from "./logger";
@@ -56,12 +55,46 @@ export function createTestContext(overrides?: Partial<BodhiConfig>): TestContext
 }
 
 export function stubLLMResponse(response: string): void {
+	type StubUsage = {
+		inputTokens: {
+			cacheRead: number | undefined;
+			cacheWrite: number | undefined;
+			noCache: number | undefined;
+			total: number | undefined;
+		};
+		outputTokens: {
+			reasoning: number | undefined;
+			text: number | undefined;
+			total: number | undefined;
+		};
+	};
+	type StubGenerateResult = {
+		content: Array<{ text: string; type: "text" }>;
+		finishReason: { raw: string; unified: "stop" };
+		usage: StubUsage;
+		warnings: [];
+	};
+	type StubStreamPart =
+		| { type: "stream-start"; warnings: [] }
+		| { id: string; type: "text-start" }
+		| { delta: string; id: string; type: "text-delta" }
+		| { id: string; type: "text-end" }
+		| { finishReason: { raw: string; unified: "stop" }; type: "finish"; usage: StubUsage };
+	type StubV3Model = {
+		doGenerate(_options: unknown): Promise<StubGenerateResult>;
+		doStream(_options: unknown): Promise<{ stream: ReadableStream<StubStreamPart> }>;
+		modelId: string;
+		provider: string;
+		specificationVersion: "v3";
+		supportedUrls: Record<string, never>;
+	};
+
 	const model = {
 		modelId: "stubbed-model",
 		provider: "stubbed-provider",
 		specificationVersion: "v3",
 		supportedUrls: {},
-		async doGenerate(_options: unknown) {
+		async doGenerate(_options: unknown): Promise<StubGenerateResult> {
 			return {
 				content: [{ text: response, type: "text" }],
 				finishReason: { raw: "stop", unified: "stop" },
@@ -72,8 +105,8 @@ export function stubLLMResponse(response: string): void {
 				warnings: [],
 			};
 		},
-		async doStream(_options: unknown) {
-			const parts = [
+		async doStream(_options: unknown): Promise<{ stream: ReadableStream<StubStreamPart> }> {
+			const parts: StubStreamPart[] = [
 				{ type: "stream-start", warnings: [] },
 				{ id: "text-1", type: "text-start" },
 				{ delta: response, id: "text-1", type: "text-delta" },
@@ -88,7 +121,7 @@ export function stubLLMResponse(response: string): void {
 				},
 			];
 			return {
-				stream: new ReadableStream<unknown>({
+				stream: new ReadableStream<StubStreamPart>({
 					start(controller) {
 						for (const part of parts) {
 							controller.enqueue(part);
@@ -98,8 +131,8 @@ export function stubLLMResponse(response: string): void {
 				}),
 			};
 		},
-	} as LanguageModel;
-	Reflect.set(globalThis, "__bodhiStubLanguageModel", model);
+	} satisfies StubV3Model;
+	globalThis.__bodhiStubLanguageModel = model;
 }
 
 export function resetLLMStubs(): void {

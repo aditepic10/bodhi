@@ -3,9 +3,12 @@ import { openai } from "@ai-sdk/openai";
 import type { BodhiConfig } from "@bodhi/types";
 import type { LanguageModel } from "ai";
 
+declare global {
+	var __bodhiStubLanguageModel: LanguageModel | undefined;
+}
+
 function getStubLanguageModel(): LanguageModel | null {
-	const model = Reflect.get(globalThis, "__bodhiStubLanguageModel");
-	return model ? (model as LanguageModel) : null;
+	return globalThis.__bodhiStubLanguageModel ?? null;
 }
 
 export function hasConfiguredLanguageModel(config: BodhiConfig): boolean {

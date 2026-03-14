@@ -1,4 +1,4 @@
-import type { BodhiConfig, Fact, Store } from "@bodhi/types";
+import type { BodhiConfig, Store } from "@bodhi/types";
 import { tool } from "ai";
 import { z } from "zod";
 import type { EventBus } from "../bus";
@@ -34,7 +34,7 @@ export function createStoreFactTool(options: StoreFactToolOptions) {
 				valid_to: undefined,
 				value: input.value,
 			});
-			options.bus.emit("fact:extracted", stored as Fact);
+			options.bus.emit("fact:extracted", stored);
 			return {
 				id: stored.id,
 				key: stored.key,

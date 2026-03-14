@@ -3,8 +3,55 @@ import type { LanguageModel } from "ai";
 import { createTestContext } from "../test-utils";
 import { createAgentLoop } from "./loop";
 
+type StubUsage = {
+	inputTokens: {
+		cacheRead: number | undefined;
+		cacheWrite: number | undefined;
+		noCache: number | undefined;
+		total: number | undefined;
+	};
+	outputTokens: {
+		reasoning: number | undefined;
+		text: number | undefined;
+		total: number | undefined;
+	};
+};
+
+type StubStreamPart =
+	| { type: "stream-start"; warnings: [] }
+	| { id: string; type: "text-start" }
+	| { delta: string; id: string; type: "text-delta" }
+	| { id: string; type: "text-end" }
+	| {
+			finishReason: { raw: string; unified: "stop" | "tool-calls" };
+			type: "finish";
+			usage: StubUsage;
+	  }
+	| {
+			input: string;
+			toolCallId: string;
+			toolName: string;
+			type: "tool-call";
+	  };
+
+type StubGenerateResult = {
+	content: Array<{ text: string; type: "text" }>;
+	finishReason: { raw: string; unified: "stop" };
+	usage: StubUsage;
+	warnings: [];
+};
+
+type StubV3Model = {
+	doGenerate(_options: unknown): Promise<StubGenerateResult>;
+	doStream(_options: unknown): Promise<{ stream: ReadableStream<StubStreamPart> }>;
+	modelId: string;
+	provider: string;
+	specificationVersion: "v3";
+	supportedUrls: Record<string, never>;
+};
+
 function createStreamModel(
-	streams: Array<Array<unknown>>,
+	streams: Array<Array<StubStreamPart>>,
 	onCall?: (options: Record<string, unknown>, callIndex: number) => void,
 ): LanguageModel {
 	let callIndex = 0;
@@ -14,15 +61,15 @@ function createStreamModel(
 		provider: "mock-agent-provider",
 		specificationVersion: "v3",
 		supportedUrls: {},
-		async doGenerate(_options: unknown) {
+		async doGenerate(_options: unknown): Promise<StubGenerateResult> {
 			throw new Error("doGenerate not implemented for stream model");
 		},
-		async doStream(options: unknown) {
+		async doStream(options: unknown): Promise<{ stream: ReadableStream<StubStreamPart> }> {
 			onCall?.((options ?? {}) as Record<string, unknown>, callIndex);
-			const parts = streams[callIndex] ?? [];
+			const parts: StubStreamPart[] = streams[callIndex] ?? [];
 			callIndex += 1;
 			return {
-				stream: new ReadableStream<unknown>({
+				stream: new ReadableStream<StubStreamPart>({
 					start(controller) {
 						for (const part of parts) {
 							controller.enqueue(part);
@@ -32,7 +79,7 @@ function createStreamModel(
 				}),
 			};
 		},
-	} as LanguageModel;
+	} satisfies StubV3Model;
 }
 
 describe("agent workflows", () => {
