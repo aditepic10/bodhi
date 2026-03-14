@@ -23,6 +23,10 @@ export const IntelConfigSchema = z.object({
 	}),
 });
 
+export const AgentConfigSchema = z.object({
+	max_output_tokens: z.number().int().positive().default(4096),
+});
+
 export const ConversationConfigSchema = z.object({
 	max_sessions: z.number().int().min(0).default(100),
 });
@@ -57,6 +61,9 @@ export const BodhiConfigSchema = z.object({
 			model: "claude-sonnet-4-6",
 		},
 	}),
+	agent: AgentConfigSchema.default({
+		max_output_tokens: 4096,
+	}),
 	conversations: ConversationConfigSchema.default({
 		max_sessions: 100,
 	}),
@@ -78,6 +85,7 @@ export type ModelProvider = z.infer<typeof ModelProviderSchema>;
 export type ModelConfig = z.infer<typeof ModelConfigSchema>;
 export type CaptureConfig = z.infer<typeof CaptureConfigSchema>;
 export type IntelConfig = z.infer<typeof IntelConfigSchema>;
+export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 export type ConversationConfig = z.infer<typeof ConversationConfigSchema>;
 export type RateLimitConfig = z.infer<typeof RateLimitConfigSchema>;
 export type PipelineConfig = z.infer<typeof PipelineConfigSchema>;

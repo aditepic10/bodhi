@@ -1,9 +1,16 @@
 import type { EventFilter, EventType, Fact, Store, StoredEvent } from "@bodhi/types";
 
 import { createRetrievalPlanner } from "./planner";
+import {
+	type EventCandidate,
+	type FactCandidate,
+	rankEventCandidate,
+	rankFactCandidate,
+} from "./ranking";
 import type { RetrievalOverrides, RetrievalPlanner, RetrievedContext } from "./types";
 
 export interface RetrievalServiceOptions {
+	now?: () => number;
 	planner?: RetrievalPlanner;
 	store: Store;
 }
@@ -12,16 +19,13 @@ export interface RetrievalService {
 	retrieve(question: string, overrides?: RetrievalOverrides): Promise<RetrievedContext>;
 }
 
-interface RankedEvent {
-	event: StoredEvent;
-	score: number;
-}
+type SharedFilter = Pick<
+	RetrievalOverrides,
+	"after" | "before" | "branch" | "cwd" | "repo" | "thread" | "tool"
+>;
 
 function buildEventFilter(
-	plan: Pick<
-		RetrievalOverrides,
-		"after" | "before" | "branch" | "cwd" | "repo" | "thread" | "tool"
-	> & {
+	plan: SharedFilter & {
 		eventType?: EventType;
 		source?: StoredEvent["source"];
 		limit: number;
@@ -34,66 +38,146 @@ function buildEventFilter(
 		cwd: plan.cwd,
 		limit: plan.limit,
 		repo: plan.repo,
+		source: plan.source,
 		thread: plan.thread,
 		tool: plan.tool,
 		type: plan.eventType,
-		source: plan.source,
 	};
 }
 
-async function getRecentEventsByType(
+async function getRecentEvents(
 	store: Store,
-	eventTypes: readonly EventType[],
 	limit: number,
-	overrides: Pick<
-		RetrievalOverrides,
-		"after" | "before" | "branch" | "cwd" | "repo" | "thread" | "tool"
-	>,
+	overrides: SharedFilter,
+	eventTypes: readonly EventType[],
 ): Promise<StoredEvent[]> {
+	if (eventTypes.length === 0) {
+		return store.getEvents(buildEventFilter({ ...overrides, limit }));
+	}
+
 	const batches = await Promise.all(
 		eventTypes.map((eventType) =>
 			store.getEvents(buildEventFilter({ ...overrides, eventType, limit })),
 		),
 	);
 
-	return batches.flat();
+	return batches
+		.flat()
+		.sort((left, right) => right.created_at - left.created_at)
+		.slice(0, limit);
 }
 
-function rankEvents(events: RankedEvent[], limit: number): StoredEvent[] {
-	return [...events]
+function createEventCandidateMap(): Map<string, EventCandidate> {
+	return new Map<string, EventCandidate>();
+}
+
+function addTextCandidates(
+	candidates: Map<string, EventCandidate>,
+	events: readonly StoredEvent[],
+): void {
+	events.forEach((event, index) => {
+		const existing = candidates.get(event.event_id);
+		if (existing) {
+			existing.ftsRank = Math.min(existing.ftsRank ?? index, index);
+			return;
+		}
+		candidates.set(event.event_id, {
+			event,
+			ftsRank: index,
+		});
+	});
+}
+
+function addRecentCandidates(
+	candidates: Map<string, EventCandidate>,
+	events: readonly StoredEvent[],
+): void {
+	events.forEach((event, index) => {
+		const existing = candidates.get(event.event_id);
+		if (existing) {
+			existing.recentRank = Math.min(existing.recentRank ?? index, index);
+			return;
+		}
+		candidates.set(event.event_id, {
+			event,
+			recentRank: index,
+		});
+	});
+}
+
+function rankEvents(
+	candidates: readonly EventCandidate[],
+	limit: number,
+	questionNow: number,
+	sources: RetrievedContext["plan"]["sources"],
+	terms: readonly string[],
+	intents: RetrievedContext["plan"]["intents"],
+): StoredEvent[] {
+	const maxFtsRank = Math.max(...candidates.map((candidate) => candidate.ftsRank ?? 0), 1);
+	const maxRecentRank = Math.max(...candidates.map((candidate) => candidate.recentRank ?? 0), 1);
+
+	return [...candidates]
 		.sort((left, right) => {
-			if (right.score !== left.score) {
-				return right.score - left.score;
+			const leftScore = rankEventCandidate(left, {
+				intents,
+				maxFtsRank,
+				maxRecentRank,
+				now: questionNow,
+				sources,
+				terms,
+			});
+			const rightScore = rankEventCandidate(right, {
+				intents,
+				maxFtsRank,
+				maxRecentRank,
+				now: questionNow,
+				sources,
+				terms,
+			});
+			if (rightScore !== leftScore) {
+				return rightScore - leftScore;
 			}
 			return right.event.created_at - left.event.created_at;
 		})
 		.slice(0, limit)
-		.map((entry) => entry.event);
+		.map((candidate) => candidate.event);
 }
 
-function dedupeRankedEvents(entries: RankedEvent[]): RankedEvent[] {
-	const ranked = new Map<string, RankedEvent>();
-	for (const entry of entries) {
-		const existing = ranked.get(entry.event.event_id);
-		if (!existing || entry.score > existing.score) {
-			ranked.set(entry.event.event_id, entry);
-		}
-	}
-	return [...ranked.values()];
-}
+function rankFacts(
+	facts: readonly Fact[],
+	intents: RetrievedContext["plan"]["intents"],
+	limit: number,
+	now: number,
+): Fact[] {
+	const candidates: FactCandidate[] = facts.map((fact, index) => ({
+		fact,
+		searchRank: index,
+	}));
 
-function rankFact(fact: Fact): number {
-	return fact.confidence * 100 + fact.created_at;
+	return [...candidates]
+		.sort((left, right) => {
+			const leftScore = rankFactCandidate(left, intents, now);
+			const rightScore = rankFactCandidate(right, intents, now);
+			if (rightScore !== leftScore) {
+				return rightScore - leftScore;
+			}
+			return right.fact.created_at - left.fact.created_at;
+		})
+		.slice(0, limit)
+		.map((candidate) => candidate.fact);
 }
 
 export function createRetrievalService(options: RetrievalServiceOptions): RetrievalService {
 	const planner = options.planner ?? createRetrievalPlanner();
+	const now = options.now ?? (() => Math.floor(Date.now() / 1000));
 
 	return {
 		async retrieve(question, overrides = {}) {
 			const plan = planner.plan(question, overrides);
+			const candidateLimit = Math.max(plan.limit * 4, 12);
+			const currentTime = now();
 
-			const rankedEvents: RankedEvent[] = [];
+			const eventCandidates = createEventCandidateMap();
 			if (plan.includeEvents) {
 				if (plan.query.length > 0) {
 					const textMatches = await options.store.searchEvents(
@@ -103,54 +187,53 @@ export function createRetrievalService(options: RetrievalServiceOptions): Retrie
 							before: plan.before,
 							branch: plan.branch,
 							cwd: plan.cwd,
-							limit: plan.limit * 3,
+							limit: candidateLimit,
 							repo: plan.repo,
 							thread: plan.thread,
 							tool: plan.tool,
 						}),
 					);
-					for (const event of textMatches) {
-						rankedEvents.push({
-							event,
-							score: 100,
-						});
-					}
+					addTextCandidates(eventCandidates, textMatches);
 				}
 
-				if (plan.eventTypes.length > 0) {
-					const recentMatches = await getRecentEventsByType(
-						options.store,
-						plan.eventTypes,
-						plan.limit,
-						{
-							after: plan.after,
-							before: plan.before,
-							branch: plan.branch,
-							cwd: plan.cwd,
-							repo: plan.repo,
-							thread: plan.thread,
-							tool: plan.tool,
-						},
-					);
-					for (const event of recentMatches) {
-						rankedEvents.push({
-							event,
-							score: 50,
-						});
-					}
-				}
+				const recentMatches = await getRecentEvents(
+					options.store,
+					candidateLimit,
+					{
+						after: plan.after,
+						before: plan.before,
+						branch: plan.branch,
+						cwd: plan.cwd,
+						repo: plan.repo,
+						thread: plan.thread,
+						tool: plan.tool,
+					},
+					plan.eventTypes,
+				);
+				addRecentCandidates(eventCandidates, recentMatches);
 			}
 
 			const facts =
 				plan.includeFacts && plan.query.length > 0
-					? (await options.store.searchFacts(plan.query, plan.limit * 2))
-							.filter((fact) => fact.status === "active" && fact.valid_to == null)
-							.sort((left, right) => rankFact(right) - rankFact(left))
-							.slice(0, plan.limit)
+					? rankFacts(
+							(await options.store.searchFacts(plan.query, candidateLimit)).filter(
+								(fact) => fact.status === "active" && fact.valid_to == null,
+							),
+							plan.intents,
+							plan.limit,
+							currentTime,
+						)
 					: [];
 
 			return {
-				events: rankEvents(dedupeRankedEvents(rankedEvents), plan.limit),
+				events: rankEvents(
+					[...eventCandidates.values()],
+					plan.limit,
+					currentTime,
+					plan.sources,
+					plan.terms,
+					plan.intents,
+				),
 				facts,
 				plan,
 			};

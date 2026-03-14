@@ -1,4 +1,9 @@
 import { existsSync, writeFileSync } from "node:fs";
+import {
+	type AssistantInstallScope,
+	AssistantInstallScopeSchema,
+	listAssistantCaptureAdapters,
+} from "../capture/ai";
 import { installGitHooks } from "../capture/git";
 import {
 	defaultRcPath,
@@ -6,6 +11,7 @@ import {
 	installShellHook,
 	type SupportedShell,
 } from "../capture/shell";
+import { handleAiCapture } from "./ai-capture";
 import {
 	configPathFor,
 	ensureCliConfigDirs,
@@ -25,7 +31,52 @@ import {
 import { createCliRuntime } from "./runtime";
 import type { CliRuntime, HealthResponse } from "./types";
 
-async function handleInit(runtime: CliRuntime): Promise<number> {
+interface InitOptions {
+	assistantScope: AssistantInstallScope;
+}
+
+function parseInitOptions(args: readonly string[]): InitOptions | null {
+	let assistantScope: AssistantInstallScope = "global";
+
+	for (let index = 0; index < args.length; index += 1) {
+		const arg = args[index];
+		if (!arg) {
+			continue;
+		}
+
+		if (arg === "--assistant-scope") {
+			const next = args[index + 1];
+			const parsed = AssistantInstallScopeSchema.safeParse(next);
+			if (!parsed.success) {
+				return null;
+			}
+			assistantScope = parsed.data;
+			index += 1;
+			continue;
+		}
+
+		if (arg.startsWith("--assistant-scope=")) {
+			const parsed = AssistantInstallScopeSchema.safeParse(arg.slice("--assistant-scope=".length));
+			if (!parsed.success) {
+				return null;
+			}
+			assistantScope = parsed.data;
+			continue;
+		}
+
+		return null;
+	}
+
+	return { assistantScope };
+}
+
+async function handleInit(runtime: CliRuntime, args: readonly string[]): Promise<number> {
+	const options = parseInitOptions(args);
+	if (!options) {
+		writeLine(runtime.stderr, "Usage: bodhi init [--assistant-scope global|project|none]");
+		return 1;
+	}
+
 	const config = runtime.loadConfig();
 	const configPath = configPathFor(config);
 	ensureCliConfigDirs(config);
@@ -57,6 +108,18 @@ async function handleInit(runtime: CliRuntime): Promise<number> {
 		writeLine(runtime.stderr, "Warning: git not found; git lifecycle hooks were not installed");
 	} else if (gitHooks.hooksDir) {
 		writeLine(runtime.stdout, `Installed git hooks: ${gitHooks.hooksDir}`);
+	}
+
+	if (options.assistantScope === "none") {
+		writeLine(runtime.stdout, "Skipped assistant integrations: assistant scope set to none");
+	} else {
+		for (const adapter of listAssistantCaptureAdapters()) {
+			const installPath = adapter.install(options.assistantScope, runtime.cwd());
+			writeLine(
+				runtime.stdout,
+				`Installed ${adapter.displayName} integration (${options.assistantScope}): ${installPath}`,
+			);
+		}
 	}
 
 	writeLine(runtime.stdout, `Config: ${configPath}`);
@@ -144,8 +207,10 @@ async function handleStatus(runtime: CliRuntime): Promise<number> {
 	const config = runtime.loadConfig();
 	let health: HealthResponse;
 	try {
-		const response = await runtime.requestJson(config, "/health", { authenticated: false });
-		health = response.body as HealthResponse;
+		const response = await runtime.requestJson<HealthResponse>(config, "/health", {
+			authenticated: false,
+		});
+		health = response.body;
 	} catch {
 		writeLine(runtime.stdout, "Status: stopped");
 		return 1;
@@ -200,7 +265,7 @@ export async function runCli(
 			writeLine(runtime.stdout, HELP_TEXT);
 			return 0;
 		case "init":
-			return handleInit(runtime);
+			return handleInit(runtime, args);
 		case "start":
 			return handleStart(runtime);
 		case "stop":
@@ -209,6 +274,12 @@ export async function runCli(
 			return handleStatus(runtime);
 		case "recall":
 			return handleRecall(runtime, args);
+		case "internal":
+			if (args[0] === "ai-capture") {
+				return handleAiCapture(runtime, args.slice(1));
+			}
+			writeLine(runtime.stderr, `Unknown internal command: ${args.join(" ")}`);
+			return 1;
 		default:
 			writeLine(runtime.stderr, `Unknown command: ${command}`);
 			writeLine(runtime.stderr, HELP_TEXT);

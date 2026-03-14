@@ -272,6 +272,51 @@ describe("agent workflows", () => {
 		expect(capturedPrompt).toContain("shell.command.executed");
 	});
 
+	test("agent loop passes configured max output tokens to the model", async () => {
+		const context = createTestContext({
+			agent: {
+				max_output_tokens: 2048,
+			},
+		});
+		let capturedMaxOutputTokens: unknown;
+		const model = createStreamModel(
+			[
+				[
+					{ type: "stream-start", warnings: [] },
+					{ id: "text-config", type: "text-start" },
+					{ delta: "configured", id: "text-config", type: "text-delta" },
+					{ id: "text-config", type: "text-end" },
+					{
+						finishReason: { raw: "stop", unified: "stop" },
+						type: "finish",
+						usage: {
+							inputTokens: { cacheRead: undefined, cacheWrite: undefined, noCache: 1, total: 1 },
+							outputTokens: { reasoning: undefined, text: 1, total: 1 },
+						},
+					},
+				],
+			],
+			(options) => {
+				capturedMaxOutputTokens = options.maxOutputTokens;
+			},
+		);
+
+		const loop = createAgentLoop({
+			bus: context.bus,
+			config: context.config,
+			model,
+			pipeline: context.pipeline,
+			store: context.store,
+		});
+		const { result } = await loop.stream({
+			message: "Test max output tokens",
+			sessionId: "session-configured-max-output",
+		});
+
+		expect(await result.text).toBe("configured");
+		expect(capturedMaxOutputTokens).toBe(2048);
+	});
+
 	test("recall injects only bounded relevant facts instead of dumping all active facts into context", async () => {
 		const context = createTestContext();
 		await context.store.insertFact({

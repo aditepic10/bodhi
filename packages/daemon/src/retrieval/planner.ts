@@ -1,6 +1,7 @@
 import type { EventSource, EventType } from "@bodhi/types";
 
-import type { RetrievalOverrides, RetrievalPlan, RetrievalPlanner } from "./types";
+import { deriveIntents, listIntentEventTypes } from "./intents";
+import type { RetrievalPlan, RetrievalPlanner } from "./types";
 
 const DEFAULT_LIMIT = 5;
 const MAX_LIMIT = 10;
@@ -26,32 +27,9 @@ const STOP_WORDS = new Set([
 	"or",
 	"the",
 	"to",
+	"up",
 	"what",
 ]);
-
-interface RetrievalFacet {
-	eventTypes: readonly EventType[];
-	keywords: readonly string[];
-	sources: readonly EventSource[];
-}
-
-const RETRIEVAL_FACETS: readonly RetrievalFacet[] = [
-	{
-		eventTypes: ["shell.command.executed", "shell.command.started"],
-		keywords: ["command", "commands", "execute", "executed", "ran", "run", "shell", "terminal"],
-		sources: ["shell"],
-	},
-	{
-		eventTypes: ["git.commit.created", "git.checkout", "git.merge", "git.rewrite"],
-		keywords: ["branch", "branches", "commit", "commits", "git", "merge", "merged"],
-		sources: ["git"],
-	},
-	{
-		eventTypes: ["note.created"],
-		keywords: ["note", "notes", "wrote", "written"],
-		sources: ["manual"],
-	},
-];
 
 export interface RetrievalPlannerOptions {
 	now?: () => Date;
@@ -107,41 +85,68 @@ function deriveTimeWindow(question: string, now: Date): { after?: number; before
 	return {};
 }
 
-function deriveFacets(tokens: readonly string[]): {
-	eventTypes: EventType[];
-	sources: EventSource[];
-} {
-	const eventTypes = new Set<EventType>();
+function deriveSources(question: string, terms: readonly string[]): EventSource[] {
 	const sources = new Set<EventSource>();
-	for (const facet of RETRIEVAL_FACETS) {
-		if (!facet.keywords.some((keyword) => tokens.includes(keyword))) {
-			continue;
-		}
-		for (const eventType of facet.eventTypes) {
-			eventTypes.add(eventType);
-		}
-		for (const source of facet.sources) {
-			sources.add(source);
-		}
+	const normalized = question.toLowerCase();
+
+	if (
+		terms.some((term) =>
+			["ai", "assistant", "claude", "codex", "opencode", "prompt"].includes(term),
+		)
+	) {
+		sources.add("ai");
+	}
+	if (
+		terms.some((term) =>
+			["branch", "checkout", "commit", "git", "merge", "rebase", "rewrite"].includes(term),
+		)
+	) {
+		sources.add("git");
+	}
+	if (
+		terms.some((term) => ["command", "commands", "run", "ran", "shell", "terminal"].includes(term))
+	) {
+		sources.add("shell");
+	}
+	if (terms.some((term) => ["note", "notes"].includes(term))) {
+		sources.add("manual");
+	}
+	if (sources.size === 0 && normalized.includes("what have i been up to")) {
+		sources.add("shell");
+		sources.add("git");
+		sources.add("ai");
+		sources.add("manual");
 	}
 
-	return {
-		eventTypes: [...eventTypes],
-		sources: [...sources],
-	};
+	return [...sources];
 }
 
-function normalizeOverrides(
-	fallback: { eventTypes: EventType[]; sources: EventSource[] },
-	overrides: RetrievalOverrides,
-): {
-	eventTypes: readonly EventType[];
-	sources: readonly EventSource[];
-} {
-	return {
-		eventTypes: overrides.eventTypes ?? fallback.eventTypes,
-		sources: overrides.sources ?? fallback.sources,
-	};
+function eventTypesForSources(sources: readonly EventSource[]): EventType[] {
+	const eventTypes = new Set<EventType>();
+	for (const source of sources) {
+		switch (source) {
+			case "ai":
+				eventTypes.add("ai.prompt");
+				eventTypes.add("ai.tool_call");
+				break;
+			case "git":
+				eventTypes.add("git.commit.created");
+				eventTypes.add("git.checkout");
+				eventTypes.add("git.merge");
+				eventTypes.add("git.rewrite");
+				break;
+			case "manual":
+				eventTypes.add("note.created");
+				break;
+			case "shell":
+				eventTypes.add("shell.command.executed");
+				eventTypes.add("shell.command.started");
+				break;
+			case "api":
+				break;
+		}
+	}
+	return [...eventTypes];
 }
 
 export function createRetrievalPlanner(options: RetrievalPlannerOptions = {}): RetrievalPlanner {
@@ -149,23 +154,29 @@ export function createRetrievalPlanner(options: RetrievalPlannerOptions = {}): R
 
 	return {
 		plan(question, overrides = {}): RetrievalPlan {
+			const normalizedQuestion = question.toLowerCase();
 			const terms = tokenize(question);
 			const derivedTimeWindow = deriveTimeWindow(question, now());
-			const derivedFacets = deriveFacets(terms);
-			const constrained = normalizeOverrides(derivedFacets, overrides);
+			const intents = deriveIntents(normalizedQuestion, terms, overrides.branch);
+			const derivedSources = deriveSources(question, terms);
+			const derivedEventTypes = new Set<EventType>(listIntentEventTypes(intents));
+			for (const eventType of eventTypesForSources(derivedSources)) {
+				derivedEventTypes.add(eventType);
+			}
 
 			return {
 				after: overrides.after ?? derivedTimeWindow.after,
 				before: overrides.before ?? derivedTimeWindow.before,
 				branch: overrides.branch,
 				cwd: overrides.cwd,
-				eventTypes: constrained.eventTypes,
+				eventTypes: overrides.eventTypes ?? [...derivedEventTypes],
 				includeEvents: overrides.includeEvents ?? true,
 				includeFacts: overrides.includeFacts ?? true,
+				intents,
 				limit: clampLimit(overrides.limit),
 				query: terms.join(" "),
 				repo: overrides.repo,
-				sources: constrained.sources,
+				sources: overrides.sources ?? derivedSources,
 				thread: overrides.thread,
 				terms,
 				tool: overrides.tool,

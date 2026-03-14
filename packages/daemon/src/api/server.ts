@@ -36,6 +36,35 @@ interface RateWindow {
 	windowMs: number;
 }
 
+export type ServeConfig =
+	| {
+			idleTimeout: number;
+			transport: "tcp";
+			host: string;
+			port: number;
+	  }
+	| {
+			idleTimeout: number;
+			transport: "unix";
+			socketPath: string;
+	  };
+
+type HttpServeHandler = (
+	this: Bun.Server<undefined>,
+	request: Request,
+	server: Bun.Server<undefined>,
+) => Response | Promise<Response>;
+
+type TcpHttpServeOptions = Bun.Serve.HostnamePortServeOptions<undefined> & {
+	fetch: HttpServeHandler;
+	routes?: never;
+};
+
+type UnixHttpServeOptions = Bun.Serve.UnixServeOptions<undefined> & {
+	fetch: HttpServeHandler;
+	routes?: never;
+};
+
 class SlidingWindowLimiter {
 	private readonly hits = new Map<string, number[]>();
 
@@ -153,23 +182,49 @@ export function createApiApp(
 	return { app, api };
 }
 
+export function createServeConfig(config: BodhiConfig): ServeConfig {
+	return config.transport === "unix"
+		? {
+				idleTimeout: 0,
+				socketPath: config.socket_path,
+				transport: "unix",
+			}
+		: {
+				host: config.host,
+				idleTimeout: 0,
+				port: config.port,
+				transport: "tcp",
+			};
+}
+
 export function startApiServer(
 	dependencies: ServerDependencies,
 	overrides: ApiContextOverrides = {},
 ): RunningApiServer {
 	const { app, api } = createApiApp(dependencies, overrides);
-	const server =
-		api.config.transport === "unix"
-			? Bun.serve({
-					fetch: app.fetch,
-					unix: api.config.socket_path,
-				})
-			: Bun.serve({
-					fetch: app.fetch,
-					hostname: api.config.host,
-					idleTimeout: 0,
-					port: api.config.port,
-				});
+	const serveConfig = createServeConfig(api.config);
+	let server: ReturnType<typeof Bun.serve>;
+	if (serveConfig.transport === "unix") {
+		const unixServeOptions: UnixHttpServeOptions = {
+			fetch(request) {
+				return app.fetch(request);
+			},
+			unix: serveConfig.socketPath,
+		};
+		// bun-types omits idleTimeout on UnixServeOptions, but Bun supports it at runtime.
+		Reflect.set(unixServeOptions, "idleTimeout", serveConfig.idleTimeout);
+		server = Bun.serve(unixServeOptions);
+	} else {
+		const tcpServeOptions: TcpHttpServeOptions = {
+			fetch(request) {
+				return app.fetch(request);
+			},
+			hostname: serveConfig.host,
+			idleTimeout: serveConfig.idleTimeout,
+			port: serveConfig.port,
+		};
+		server = Bun.serve(tcpServeOptions);
+	}
 
 	const url =
 		api.config.transport === "unix"

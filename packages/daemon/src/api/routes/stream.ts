@@ -2,6 +2,7 @@ import { TextEncoder } from "node:util";
 import type { Hono } from "hono";
 
 import type { ApiContext } from "../context";
+import { createSseWriter } from "./sse";
 
 const HEARTBEAT_MS = 15_000;
 const encoder = new TextEncoder();
@@ -18,24 +19,21 @@ export function registerStreamRoute(app: Hono, api: ApiContext): void {
 	app.get("/stream", (c) => {
 		const stream = new ReadableStream<Uint8Array>({
 			start(controller) {
-				controller.enqueue(encodeHeartbeat());
+				const writer = createSseWriter(controller);
+				writer.enqueue(encodeHeartbeat());
 
 				const unsubscribe = api.bus.on("*", ({ type, payload }) => {
-					controller.enqueue(encodeSseEvent(type, payload));
+					writer.enqueue(encodeSseEvent(type, payload));
 				});
 
 				const heartbeat = setInterval(() => {
-					controller.enqueue(encodeHeartbeat());
+					writer.enqueue(encodeHeartbeat());
 				}, HEARTBEAT_MS);
 
 				const cleanup = () => {
 					clearInterval(heartbeat);
 					unsubscribe();
-					try {
-						controller.close();
-					} catch {
-						// Ignore close races from abort/cancel.
-					}
+					writer.close();
 				};
 
 				c.req.raw.signal.addEventListener("abort", cleanup, { once: true });

@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { type BodhiConfig, BodhiConfigSchema } from "@bodhi/types";
 
 import { type CliRuntime, runCli } from "./cli";
+import type { JsonObject, JsonResponse, JsonValue, RequestOptions } from "./cli/types";
 import { applyPragmas, createStore, ensureCoreSchema, setupFts } from "./store/sqlite";
 
 const tempDirs: string[] = [];
@@ -65,7 +66,10 @@ function createRuntime(
 		loadConfig() {
 			return config;
 		},
-		async requestJson() {
+		readStdin() {
+			return Promise.resolve("");
+		},
+		async requestJson<TResponse = unknown, _TBody extends JsonValue = JsonObject>() {
 			return {
 				body: {
 					components: {
@@ -80,7 +84,7 @@ function createRuntime(
 					uptime: 120,
 				},
 				status: 200,
-			};
+			} as JsonResponse<TResponse>;
 		},
 		async requestSse(_config, _path, _body, onEvent) {
 			onEvent({ text: "hello ", type: "text-delta" });
@@ -147,16 +151,57 @@ describe("cli workflows", () => {
 
 		expect(exitCode).toBe(0);
 		expect(existsSync(join(config.config_dir, "config.toml"))).toBe(true);
+		expect(readFileSync(join(config.config_dir, "config.toml"), "utf8")).toContain("[agent]");
+		expect(readFileSync(join(config.config_dir, "config.toml"), "utf8")).toContain(
+			"max_output_tokens = 4096",
+		);
 		expect(readFileSync(defaultPath(root, ".zshrc"), "utf8")).toContain("# >>> bodhi >>>");
 		expect(readFileSync(defaultPath(root, ".bashrc"), "utf8")).toContain("# >>> bodhi >>>");
 		expect(readFileSync(join(repoPath, ".git", "hooks", "post-commit"), "utf8")).toContain(
 			"# >>> bodhi git >>>",
 		);
+		expect(readFileSync(join(root, ".claude", "settings.json"), "utf8")).toContain(
+			"bodhi internal ai-capture claude-code",
+		);
+		expect(
+			readFileSync(join(root, ".config", "opencode", "plugins", "bodhi.ts"), "utf8"),
+		).toContain('["bodhi","internal","ai-capture","opencode"]');
 		expect(stdout).toContain("Installed zsh hook");
 		expect(stdout).toContain("Installed git hooks");
+		expect(stdout).toContain("Installed Claude Code integration (global)");
+		expect(stdout).toContain("Installed OpenCode integration (global)");
 		expect(stdout).toContain("Config:");
 		expect(stderr).toContain("uuidgen not found");
 		expect(stderr).toContain("jq not found");
+	});
+
+	test("init can install assistant integrations at project scope", async () => {
+		const root = makeTempDir();
+		const repoPath = join(root, "repo");
+		process.env.HOME = root;
+		const config = makeConfig(root);
+		mkdirp(repoPath);
+		initGitRepo(repoPath);
+		const runtime = createRuntime(config, {
+			cwd() {
+				return repoPath;
+			},
+		});
+
+		const exitCode = await runCli(["init", "--assistant-scope", "project"], runtime);
+		const { stdout } = runtime._buffers.text();
+
+		expect(exitCode).toBe(0);
+		expect(existsSync(join(root, ".claude", "settings.json"))).toBe(false);
+		expect(existsSync(join(root, ".config", "opencode", "plugins", "bodhi.ts"))).toBe(false);
+		expect(readFileSync(join(repoPath, ".claude", "settings.local.json"), "utf8")).toContain(
+			"bodhi internal ai-capture claude-code",
+		);
+		expect(readFileSync(join(repoPath, ".opencode", "plugins", "bodhi.ts"), "utf8")).toContain(
+			'["bodhi","internal","ai-capture","opencode"]',
+		);
+		expect(stdout).toContain("Installed Claude Code integration (project)");
+		expect(stdout).toContain("Installed OpenCode integration (project)");
 	});
 
 	test("status reads daemon health and local sqlite metrics", async () => {
@@ -223,6 +268,104 @@ describe("cli workflows", () => {
 		expect(stdout).toBe("hello world\n");
 	});
 
+	test("recall surfaces daemon disconnects clearly when streaming ends early", async () => {
+		const root = makeTempDir();
+		const config = makeConfig(root);
+		const runtime = createRuntime(config, {
+			async requestSse() {
+				throw new Error(
+					"Bodhi daemon disconnected before finishing streamed response from unix:/tmp/bodhi.sock",
+				);
+			},
+		});
+
+		await expect(runCli(["recall", "what", "happened?"], runtime)).rejects.toThrow(
+			"Bodhi daemon disconnected before finishing streamed response",
+		);
+	});
+
+	test("internal ai capture ingests mapped assistant events", async () => {
+		const root = makeTempDir();
+		process.env.HOME = root;
+		const config = makeConfig(root);
+		const requests: Array<{ path: string; body: JsonObject | undefined }> = [];
+		const runtime = createRuntime(config, {
+			readStdin() {
+				return Promise.resolve(
+					JSON.stringify({
+						cwd: join(root, "repo"),
+						hook_event_name: "UserPromptSubmit",
+						prompt: "how does retrieval work?",
+						session_id: "claude-session-1",
+					}),
+				);
+			},
+			async requestJson<TResponse = unknown, _TBody extends JsonValue = JsonObject>(
+				_config: BodhiConfig,
+				path: string,
+				options?: RequestOptions<_TBody>,
+			) {
+				requests.push({
+					body:
+						options?.body && typeof options.body === "object" && !Array.isArray(options.body)
+							? options.body
+							: undefined,
+					path,
+				});
+				return { body: null as TResponse, status: 200 };
+			},
+		});
+
+		const exitCode = await runCli(["internal", "ai-capture", "claude-code"], runtime);
+
+		expect(exitCode).toBe(0);
+		expect(requests).toHaveLength(1);
+		expect(requests[0]?.path).toBe("/events");
+		expect(requests[0]?.body?.type).toBe("ai.prompt");
+	});
+
+	test("internal ai capture spools events when ingest transport fails", async () => {
+		const root = makeTempDir();
+		process.env.HOME = root;
+		const config = makeConfig(root);
+		mkdirp(config.data_dir);
+		const runtime = createRuntime(config, {
+			readStdin() {
+				return Promise.resolve(
+					JSON.stringify({
+						cwd: join(root, "repo"),
+						kind: "tool_call",
+						session_id: "opencode-session-1",
+						target: "README.md",
+						tool_name: "Edit",
+					}),
+				);
+			},
+			async requestJson<_TResponse = unknown, _TBody extends JsonValue = JsonObject>() {
+				throw new Error("socket unavailable");
+			},
+		});
+
+		const exitCode = await runCli(["internal", "ai-capture", "opencode"], runtime);
+		const spoolPath = join(config.data_dir, `spool.${process.pid}.jsonl`);
+
+		expect(exitCode).toBe(0);
+		expect(existsSync(spoolPath)).toBe(true);
+		expect(readFileSync(spoolPath, "utf8")).toContain('"type":"ai.tool_call"');
+	});
+
+	test("init rejects invalid assistant scopes", async () => {
+		const root = makeTempDir();
+		const config = makeConfig(root);
+		const runtime = createRuntime(config);
+
+		const exitCode = await runCli(["init", "--assistant-scope", "workspace"], runtime);
+		const { stderr } = runtime._buffers.text();
+
+		expect(exitCode).toBe(1);
+		expect(stderr).toContain("Usage: bodhi init");
+	});
+
 	test("start and stop control daemon lifecycle via pid file and health checks", async () => {
 		const root = makeTempDir();
 		const config = makeConfig(root);
@@ -230,7 +373,7 @@ describe("cli workflows", () => {
 		let aliveChecks = 0;
 		const signals: Array<{ pid: number; signal: NodeJS.Signals }> = [];
 		const runtime = createRuntime(config, {
-			async requestJson() {
+			async requestJson<TResponse = unknown, _TBody extends JsonValue = JsonObject>() {
 				return {
 					body: {
 						components: {
@@ -245,7 +388,7 @@ describe("cli workflows", () => {
 						uptime: 1,
 					},
 					status: 200,
-				};
+				} as JsonResponse<TResponse>;
 			},
 			isProcessAlive(pid: number) {
 				if (pid !== 4242) {

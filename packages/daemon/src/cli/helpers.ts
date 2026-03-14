@@ -13,7 +13,7 @@ export const POLL_INTERVAL_MS = 100;
 export const HELP_TEXT = `bodhi <command>
 
 Commands:
-  bodhi init
+  bodhi init [--assistant-scope global|project|none]
   bodhi start
   bodhi stop
   bodhi status
@@ -99,6 +99,9 @@ export function renderDefaultConfigToml(config: BodhiConfig): string {
 		`provider = "${config.intel.model.provider}"`,
 		`model = "${config.intel.model.model}"`,
 		"",
+		"[agent]",
+		`max_output_tokens = ${config.agent.max_output_tokens}`,
+		"",
 		"[conversations]",
 		`max_sessions = ${config.conversations.max_sessions}`,
 		"",
@@ -171,9 +174,11 @@ export async function waitForHealth(
 		}
 
 		try {
-			const response = await runtime.requestJson(config, "/health", { authenticated: false });
+			const response = await runtime.requestJson<HealthResponse>(config, "/health", {
+				authenticated: false,
+			});
 			if (response.status === 200 || response.status === 503) {
-				return response.body as HealthResponse;
+				return response.body;
 			}
 		} catch (error) {
 			lastError = error instanceof Error ? error.message : String(error);

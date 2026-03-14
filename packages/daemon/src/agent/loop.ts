@@ -58,7 +58,7 @@ export function createAgentLoop(options: AgentLoopOptions) {
 			await options.store.appendMessage("user", request.message, sessionId);
 
 			const result = streamText({
-				maxOutputTokens: 800,
+				maxOutputTokens: options.config.agent.max_output_tokens,
 				model,
 				onFinish: async ({ text }) => {
 					await options.store.appendMessage("assistant", text, sessionId);

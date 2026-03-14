@@ -13,7 +13,7 @@ import {
 	stubLLMResponse,
 	waitForEvent,
 } from "../test-utils";
-import { createApiApp } from "./server";
+import { createApiApp, createServeConfig } from "./server";
 
 const tempDirs: string[] = [];
 
@@ -404,6 +404,41 @@ describe("api server workflows", () => {
 			"user",
 			"assistant",
 		]);
+	});
+
+	test("serve config disables idle timeouts for both unix and tcp transports", () => {
+		const unixConfig = BodhiConfigSchema.parse({
+			config_dir: "/tmp/bodhi-unix",
+			data_dir: "/tmp/bodhi-unix",
+			socket_path: "/tmp/bodhi-unix/bodhi.sock",
+			transport: "unix",
+		});
+		const tcpConfig = BodhiConfigSchema.parse({
+			config_dir: "/tmp/bodhi-tcp",
+			data_dir: "/tmp/bodhi-tcp",
+			host: "127.0.0.1",
+			port: 4312,
+			socket_path: "/tmp/unused.sock",
+			transport: "tcp",
+		});
+
+		const unixServeConfig = createServeConfig(unixConfig);
+		const tcpServeConfig = createServeConfig(tcpConfig);
+
+		expect(unixServeConfig.idleTimeout).toBe(0);
+		expect(unixServeConfig.transport).toBe("unix");
+		if (unixServeConfig.transport !== "unix") {
+			throw new Error("expected unix transport");
+		}
+		expect(unixServeConfig.socketPath).toBe("/tmp/bodhi-unix/bodhi.sock");
+
+		expect(tcpServeConfig.idleTimeout).toBe(0);
+		expect(tcpServeConfig.transport).toBe("tcp");
+		if (tcpServeConfig.transport !== "tcp") {
+			throw new Error("expected tcp transport");
+		}
+		expect(tcpServeConfig.port).toBe(4312);
+		expect(tcpServeConfig.host).toBe("127.0.0.1");
 	});
 
 	test("facts rate limiting returns structured 429 responses", async () => {

@@ -4,6 +4,7 @@ import type { BodhiEvent, CaptureSource, Fact, StoredEvent } from "@bodhi/types"
 import { type RunningApiServer, startApiServer } from "./api/server";
 import { createEventBus, type EventBus } from "./bus";
 import { loadConfig } from "./config";
+import { createFatalHandler } from "./daemon-fatal";
 import { createIntelService, type IntelService } from "./intel/service";
 import {
 	bootstrap,
@@ -164,17 +165,34 @@ async function main(): Promise<void> {
 	const daemon = await startDaemon();
 
 	let shuttingDown = false;
-	const shutdown = () => {
+	const shutdown = async () => {
 		if (shuttingDown) {
 			return;
 		}
 
 		shuttingDown = true;
-		void daemon.shutdown();
+		await daemon.shutdown();
 	};
+	const handleFatal = createFatalHandler({
+		exit(code) {
+			process.exit(code);
+		},
+		log: daemon.context.log,
+		shutdown,
+	});
 
-	process.on("SIGINT", shutdown);
-	process.on("SIGTERM", shutdown);
+	process.on("SIGINT", () => {
+		void shutdown();
+	});
+	process.on("SIGTERM", () => {
+		void shutdown();
+	});
+	process.on("uncaughtException", (error) => {
+		void handleFatal("uncaughtException", error);
+	});
+	process.on("unhandledRejection", (reason) => {
+		void handleFatal("unhandledRejection", reason);
+	});
 }
 
 if (import.meta.main) {

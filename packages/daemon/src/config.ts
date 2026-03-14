@@ -85,6 +85,11 @@ export function loadConfig(overrides: Record<string, unknown> = {}): BodhiConfig
 			auto_approve: process.env.BODHI_AUTO_APPROVE === "true",
 		};
 	}
+	if (process.env.BODHI_AGENT_MAX_OUTPUT_TOKENS) {
+		envConfig.agent = {
+			max_output_tokens: Number(process.env.BODHI_AGENT_MAX_OUTPUT_TOKENS),
+		};
+	}
 
 	return resolveConfigPaths(
 		BodhiConfigSchema.parse(mergeConfig(mergeConfig(fileConfig, envConfig), overrides)),

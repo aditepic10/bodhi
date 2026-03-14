@@ -59,7 +59,7 @@ Runtime implementation:
 - `intel/`: background extraction service
 - `pipeline/`: validate/redact/enrich transforms
 - `query/`: search orchestration
-- `retrieval/`: retrieval planning and bounded memory fetch
+- `retrieval/`: intent planning, bounded candidate retrieval, and reranking
 - `store/`: SQLite persistence and FTS
 - `daemon.ts`: top-level wiring and orchestration
 - `cli.ts`: thin command surface over the daemon
@@ -74,6 +74,14 @@ The storage layer is a typed relational activity log:
 - FTS indexes derived `search_text`, not raw payload blobs
 
 The API boundary and pipeline still operate on the discriminated union event model. Decomposition into relational tables happens only inside the store.
+
+Retrieval builds on top of this storage shape in stages:
+
+- deterministic intent planning
+- bounded candidate retrieval from FTS and typed filters
+- explicit reranking over shared event features
+
+This keeps retrieval explainable and extensible as capture sources grow.
 
 ## Module Contracts
 
@@ -103,6 +111,8 @@ The lowest-friction seams today are:
 - pipeline transforms
 
 The tightest coupling today is the SQLite layer. That is acceptable because SQLite + FTS5 is a deliberate core choice, not an accidental implementation detail.
+
+The retrieval layer should remain source-agnostic. New capture sources should plug in by defining typed payloads, shared context, derived `search_text`, and salience, rather than by adding planner hacks.
 
 ## Maintainability Notes
 

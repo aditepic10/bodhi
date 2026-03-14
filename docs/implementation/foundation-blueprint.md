@@ -218,6 +218,8 @@ Git workflow validation should cover:
 
 This is the next capture phase after Git, not a parallel distraction.
 
+See the dedicated implementation plan in [ai-capture-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/ai-capture-blueprint.md).
+
 Initial AI payload scope:
 
 - `ai.prompt`
@@ -237,11 +239,38 @@ Constraints:
 
 Do this before packaging workflows:
 
+- implement the dedicated retrieval plan in [retrieval-v2-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/retrieval-v2-blueprint.md)
 - improve ranking across shell, git, and AI evidence
 - ensure repo/branch/tool/thread filters remain structural
 - add low-signal intel pre-filtering
 - improve extraction prompts for git and AI activity
 - keep retrieval bounded and deterministic
+
+This retrieval phase is the workflow layer. It should make recent, structured activity reliably retrievable without trying to solve the later derived-memory or semantic-retrieval layers too early.
+
+### Persistent CLI chat
+
+After AI capture and retrieval/intel refinement, expose the existing session-capable agent backend through a persistent CLI chat surface before building a TUI.
+
+Phase 1 goal:
+
+- `bodhi chat`
+- session-aware streaming responses
+- user-visible session continuity on top of the existing `/agent` route and `conversations` store
+
+The TUI should come after this CLI surface is proven.
+
+### Later derived memory and insights
+
+After workflow retrieval is strong, Bodhi should add broader higher-level value on top of the same substrate:
+
+- pattern detection
+- recurring-problem detection
+- open-loop tracking
+- longer-horizon summaries
+- later hybrid or semantic retrieval if needed
+
+Those later layers should build on the typed substrate and retrieval layer rather than replacing them.
 
 ## Workflow Validation Gates
 

@@ -4,6 +4,12 @@ export interface WritableLike {
 	write(chunk: string): void;
 }
 
+export type JsonPrimitive = boolean | null | number | string;
+export type JsonValue = JsonPrimitive | JsonObject | JsonValue[];
+export interface JsonObject {
+	[key: string]: JsonValue | undefined;
+}
+
 export interface HealthResponse {
 	ok: boolean;
 	uptime: number;
@@ -27,14 +33,14 @@ export interface StatusSnapshot {
 	pendingFacts: number;
 }
 
-export interface RequestOptions {
+export interface RequestOptions<TBody extends JsonValue = JsonObject> {
 	authenticated?: boolean;
-	body?: Record<string, unknown>;
+	body?: TBody;
 	method?: "GET" | "POST";
 }
 
-export interface JsonResponse {
-	body: unknown;
+export interface JsonResponse<TBody = unknown> {
+	body: TBody;
 	status: number;
 }
 
@@ -44,12 +50,17 @@ export interface CliRuntime {
 	cwd(): string;
 	isProcessAlive(pid: number): boolean;
 	loadConfig(overrides?: Record<string, unknown>): BodhiConfig;
-	requestJson(config: BodhiConfig, path: string, options?: RequestOptions): Promise<JsonResponse>;
+	readStdin(): Promise<string>;
+	requestJson<TResponse = unknown, TBody extends JsonValue = JsonObject>(
+		config: BodhiConfig,
+		path: string,
+		options?: RequestOptions<TBody>,
+	): Promise<JsonResponse<TResponse>>;
 	requestSse(
 		config: BodhiConfig,
 		path: string,
-		body: Record<string, unknown>,
-		onEvent: (payload: Record<string, unknown>) => void,
+		body: JsonObject,
+		onEvent: (payload: JsonObject) => void,
 	): Promise<void>;
 	sleep(ms: number): Promise<void>;
 	signalProcess(pid: number, signal: NodeJS.Signals): void;

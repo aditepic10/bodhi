@@ -4,6 +4,7 @@ import { z } from "zod";
 import { createAgentLoop, NoLanguageModelConfiguredError } from "../../agent/loop";
 import type { ApiContext } from "../context";
 import { jsonError, parseJsonBody } from "../context";
+import { createSseWriter } from "./sse";
 
 const AgentRequestSchema = z.object({
 	message: z.string().min(1),
@@ -41,15 +42,16 @@ export function registerAgentRoute(app: Hono, api: ApiContext): void {
 
 			const stream = new ReadableStream<Uint8Array>({
 				start(controller) {
-					controller.enqueue(encodeHeartbeat());
+					const writer = createSseWriter(controller);
+					writer.enqueue(encodeHeartbeat());
 					const heartbeat = setInterval(() => {
-						controller.enqueue(encodeHeartbeat());
+						writer.enqueue(encodeHeartbeat());
 					}, 15_000);
 
 					const pump = async () => {
 						try {
 							for await (const chunk of result.textStream) {
-								controller.enqueue(
+								writer.enqueue(
 									encodeEvent({
 										text: chunk,
 										type: "text-delta",
@@ -57,14 +59,14 @@ export function registerAgentRoute(app: Hono, api: ApiContext): void {
 								);
 							}
 
-							controller.enqueue(
+							writer.enqueue(
 								encodeEvent({
 									session_id: sessionId,
 									type: "finish",
 								}),
 							);
 						} catch (error) {
-							controller.enqueue(
+							writer.enqueue(
 								encodeEvent({
 									code: "AGENT_ERROR",
 									error: error instanceof Error ? error.message : String(error),
@@ -73,7 +75,7 @@ export function registerAgentRoute(app: Hono, api: ApiContext): void {
 							);
 						} finally {
 							clearInterval(heartbeat);
-							controller.close();
+							writer.close();
 						}
 					};
 
@@ -82,11 +84,7 @@ export function registerAgentRoute(app: Hono, api: ApiContext): void {
 						"abort",
 						() => {
 							clearInterval(heartbeat);
-							try {
-								controller.close();
-							} catch {
-								// Ignore close races.
-							}
+							writer.close();
 						},
 						{ once: true },
 					);

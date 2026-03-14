@@ -1,5 +1,13 @@
 import type { EventSource, EventType, Fact, StoredEvent } from "@bodhi/types";
 
+export type RetrievalIntent =
+	| "recent_activity"
+	| "ai_help"
+	| "git_history"
+	| "debugging"
+	| "notes_facts"
+	| "resume_branch";
+
 export interface RetrievalOverrides {
 	after?: number;
 	before?: number;
@@ -23,6 +31,7 @@ export interface RetrievalPlan {
 	eventTypes: readonly EventType[];
 	includeEvents: boolean;
 	includeFacts: boolean;
+	intents: readonly RetrievalIntent[];
 	limit: number;
 	query: string;
 	repo?: string;
