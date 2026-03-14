@@ -64,6 +64,17 @@ Runtime implementation:
 - `daemon.ts`: top-level wiring and orchestration
 - `cli.ts`: thin command surface over the daemon
 
+## Storage Shape
+
+The storage layer is a typed relational activity log:
+
+- `events` stores the append-only envelope
+- `event_contexts` stores shared developer activity context
+- typed child tables store event-family payloads
+- FTS indexes derived `search_text`, not raw payload blobs
+
+The API boundary and pipeline still operate on the discriminated union event model. Decomposition into relational tables happens only inside the store.
+
 ## Module Contracts
 
 - Capture sources produce typed events.
@@ -100,6 +111,12 @@ The current codebase is maintainable because the boundaries are real, and the ma
 - `packages/daemon/src/cli/`
 - `packages/daemon/src/lifecycle/`
 - `packages/daemon/src/store/sqlite/`
+
+Future storage work should preserve:
+
+- Drizzle schema + migrations as the source of truth
+- one-purpose files for table definitions and hydration logic
+- workflow tests around store decomposition and reconstruction
 
 Future refactors should stay behavior-preserving and should not change external contracts.
 

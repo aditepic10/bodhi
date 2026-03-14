@@ -58,6 +58,8 @@ All ADRs in this directory are currently `Accepted` unless the file states other
 - [ADR-048: Silent-on-success hooks](./048-silent-hooks.md)
 - [ADR-049: AGENTS.md length discipline](./049-agents-md-length.md)
 - [ADR-050: Bounded retrieval planning](./050-bounded-retrieval-planning.md)
+- [ADR-051: Typed relational event storage](./051-typed-relational-event-storage.md)
+- [ADR-052: Shared activity context on events](./052-activity-context.md)
 
 ## Template
 
