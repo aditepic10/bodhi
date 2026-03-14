@@ -110,19 +110,35 @@ export async function drainSpool(
 		stored: Awaited<ReturnType<SqliteStore["appendEvent"]>>;
 	}) => void | Promise<void>,
 ): Promise<number> {
-	const spoolFiles = readdirSync(dataDir).filter(
-		(name) => name.startsWith("spool.") && name.endsWith(".jsonl") && !name.includes(".draining."),
-	);
+	const spoolFiles = new Map<string, string>();
+	for (const name of readdirSync(dataDir)) {
+		if (!name.startsWith("spool.") || !name.endsWith(".jsonl")) {
+			continue;
+		}
+
+		const stableName = name.replace(".draining.jsonl", ".jsonl");
+		const current = spoolFiles.get(stableName);
+		if (!current || name.includes(".draining.")) {
+			spoolFiles.set(stableName, name);
+		}
+	}
 
 	let drained = 0;
 
-	for (const spoolFile of spoolFiles) {
-		const sourcePath = join(dataDir, spoolFile);
-		const drainingPath = sourcePath.replace(/\.jsonl$/, ".draining.jsonl");
-		renameSync(sourcePath, drainingPath);
+	for (const spoolFile of spoolFiles.values()) {
+		const drainingPath = join(dataDir, spoolFile);
+		const sourcePath = join(dataDir, spoolFile.replace(".draining.jsonl", ".jsonl"));
+		if (drainingPath === sourcePath) {
+			renameSync(sourcePath, sourcePath.replace(/\.jsonl$/, ".draining.jsonl"));
+		}
+		const activeDrainingPath =
+			drainingPath === sourcePath
+				? sourcePath.replace(/\.jsonl$/, ".draining.jsonl")
+				: drainingPath;
+		const failedLines: string[] = [];
 
 		try {
-			const lines = readFileSync(drainingPath, "utf8")
+			const lines = readFileSync(activeDrainingPath, "utf8")
 				.split("\n")
 				.map((line) => line.trim())
 				.filter(Boolean);
@@ -146,14 +162,20 @@ export async function drainSpool(
 					}
 					drained += 1;
 				} catch (error) {
+					failedLines.push(line);
 					log.warn("failed to drain spool line", {
 						error: error instanceof Error ? error.message : String(error),
 					});
 				}
 			}
 		} finally {
-			if (existsSync(drainingPath)) {
-				unlinkSync(drainingPath);
+			if (failedLines.length > 0) {
+				writeFileSync(sourcePath, `${failedLines.join("\n")}\n`, { mode: 0o600 });
+				chmodSync(sourcePath, 0o600);
+			}
+
+			if (existsSync(activeDrainingPath)) {
+				unlinkSync(activeDrainingPath);
 			}
 		}
 	}

@@ -2,6 +2,14 @@ import type { Fact } from "@bodhi/types";
 
 import { redactSensitiveString } from "../pipeline/transforms/redact";
 
+function sanitizePromptField(value: string): string {
+	return redactSensitiveString(value)
+		.replaceAll("[UNTRUSTED DATA START]", "(UNTRUSTED DATA START)")
+		.replaceAll("[UNTRUSTED DATA END]", "(UNTRUSTED DATA END)")
+		.replace(/\s+/g, " ")
+		.trim();
+}
+
 function renderFactSummary(facts: Fact[]): string {
 	if (facts.length === 0) {
 		return "No active facts are currently stored.";
@@ -10,7 +18,7 @@ function renderFactSummary(facts: Fact[]): string {
 	return facts
 		.map(
 			(fact) =>
-				`- ${fact.key}: ${redactSensitiveString(fact.value)} (confidence ${fact.confidence.toFixed(2)})`,
+				`- ${sanitizePromptField(fact.key)}: ${sanitizePromptField(fact.value)} (confidence ${fact.confidence.toFixed(2)})`,
 		)
 		.join("\n");
 }
