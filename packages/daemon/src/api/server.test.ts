@@ -9,6 +9,8 @@ import {
 	createTestPipeline,
 	createTestStore,
 	makeEvent,
+	resetLLMStubs,
+	stubLLMResponse,
 	waitForEvent,
 } from "../test-utils";
 import { createApiApp } from "./server";
@@ -67,6 +69,7 @@ const consoleLogger = {
 };
 
 afterEach(() => {
+	resetLLMStubs();
 	for (const dir of tempDirs.splice(0)) {
 		rmSync(dir, { force: true, recursive: true });
 	}
@@ -332,6 +335,56 @@ describe("api server workflows", () => {
 		expect(body.results[0]?.schema_version).toBe(1);
 		expect(body.results[0]?.source).toBe("shell");
 		expect(body.results[0]?.metadata.command).toBe("git status");
+	});
+
+	test("agent route returns 503 when no language model is configured", async () => {
+		const { app } = createApiFixture();
+
+		const response = await app.request("http://localhost/agent", {
+			body: JSON.stringify({
+				message: "What commands have I run?",
+			}),
+			headers: {
+				"content-type": "application/json",
+			},
+			method: "POST",
+		});
+		const body = (await response.json()) as {
+			code: string;
+			error: string;
+		};
+
+		expect(response.status).toBe(503);
+		expect(body.code).toBe("NO_API_KEY");
+		expect(body.error).toBe("API key not configured");
+	});
+
+	test("agent route streams SSE text deltas when the language model is stubbed", async () => {
+		stubLLMResponse("Based on memory, you recently ran git status.");
+		const { app, store } = createApiFixture();
+
+		const response = await app.request("http://localhost/agent", {
+			body: JSON.stringify({
+				message: "What commands have I run recently?",
+				session_id: "agent-session-1",
+			}),
+			headers: {
+				"content-type": "application/json",
+			},
+			method: "POST",
+		});
+		const body = await response.text();
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-type")).toContain("text/event-stream");
+		expect(body).toContain('"type":"text-delta"');
+		expect(body).toContain("Based on memory, you recently ran git status.");
+		expect(body).toContain('"type":"finish"');
+		expect(body).toContain('"session_id":"agent-session-1"');
+		expect((await store.getConversation("agent-session-1")).map((entry) => entry.role)).toEqual([
+			"user",
+			"assistant",
+		]);
 	});
 
 	test("facts rate limiting returns structured 429 responses", async () => {

@@ -157,6 +157,10 @@ function defaultScan(value: string): RedactionMatch[] {
 	return [...detectKnownSecrets(value), ...detectKeywordSecrets(value)];
 }
 
+export function redactSensitiveString(value: string): string {
+	return redactString(value, defaultScan);
+}
+
 export function createRedactTransform(options: RedactTransformOptions = {}): Transform {
 	const scan = options.scan ?? defaultScan;
 

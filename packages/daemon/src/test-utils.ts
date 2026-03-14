@@ -1,6 +1,6 @@
 import type { BodhiConfig, BodhiEvent, Fact, PipelineConfig } from "@bodhi/types";
-
 import { BodhiConfigSchema } from "@bodhi/types";
+import type { LanguageModel } from "ai";
 
 import { type BusEventMap, createEventBus, type EventBus } from "./bus";
 import { createLogger } from "./logger";
@@ -56,7 +56,54 @@ export function createTestContext(overrides?: Partial<BodhiConfig>): TestContext
 }
 
 export function stubLLMResponse(response: string): void {
-	Reflect.set(globalThis, "__bodhiStubLLMResponse", response);
+	const model = {
+		modelId: "stubbed-model",
+		provider: "stubbed-provider",
+		specificationVersion: "v3",
+		supportedUrls: {},
+		async doGenerate(_options: unknown) {
+			return {
+				content: [{ text: response, type: "text" }],
+				finishReason: { raw: "stop", unified: "stop" },
+				usage: {
+					inputTokens: { cacheRead: undefined, cacheWrite: undefined, noCache: 1, total: 1 },
+					outputTokens: { reasoning: undefined, text: 1, total: 1 },
+				},
+				warnings: [],
+			};
+		},
+		async doStream(_options: unknown) {
+			const parts = [
+				{ type: "stream-start", warnings: [] },
+				{ id: "text-1", type: "text-start" },
+				{ delta: response, id: "text-1", type: "text-delta" },
+				{ id: "text-1", type: "text-end" },
+				{
+					finishReason: { raw: "stop", unified: "stop" },
+					type: "finish",
+					usage: {
+						inputTokens: { cacheRead: undefined, cacheWrite: undefined, noCache: 1, total: 1 },
+						outputTokens: { reasoning: undefined, text: 1, total: 1 },
+					},
+				},
+			];
+			return {
+				stream: new ReadableStream<unknown>({
+					start(controller) {
+						for (const part of parts) {
+							controller.enqueue(part);
+						}
+						controller.close();
+					},
+				}),
+			};
+		},
+	} as LanguageModel;
+	Reflect.set(globalThis, "__bodhiStubLanguageModel", model);
+}
+
+export function resetLLMStubs(): void {
+	Reflect.deleteProperty(globalThis, "__bodhiStubLanguageModel");
 }
 
 export function makeEvent(overrides: Partial<BodhiEvent> = {}): BodhiEvent {

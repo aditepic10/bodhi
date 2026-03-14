@@ -8,6 +8,7 @@ import type { Logger } from "../logger";
 import type { PipelineLike, SqliteStore } from "../store/sqlite";
 import type { ApiContext, ApiContextOverrides } from "./context";
 import { createApiContext, jsonError, MAX_JSON_BYTES } from "./context";
+import { registerAgentRoute } from "./routes/agent";
 import { registerFactsRoute } from "./routes/facts";
 import { registerHealthRoute } from "./routes/health";
 import { registerIngestRoute } from "./routes/ingest";
@@ -146,6 +147,7 @@ export function createApiApp(
 	registerIngestRoute(app, api);
 	registerFactsRoute(app, api);
 	registerQueryRoute(app, api);
+	registerAgentRoute(app, api);
 	registerStreamRoute(app, api);
 
 	return { app, api };
