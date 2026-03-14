@@ -25,7 +25,7 @@ export interface FactFilter {
 export interface Store {
 	appendEvent(event: BodhiEvent, source: StoredEvent["source"]): Promise<StoredEvent>;
 	getEvents(filter?: EventFilter): Promise<StoredEvent[]>;
-	searchEvents(query: string, limit?: number): Promise<StoredEvent[]>;
+	searchEvents(query: string, filter?: EventFilter): Promise<StoredEvent[]>;
 	getUnprocessedEvents(limit?: number): Promise<StoredEvent[]>;
 	markStarted(id: string): Promise<void>;
 	markProcessed(id: string): Promise<void>;

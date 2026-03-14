@@ -23,6 +23,14 @@ describe("retrieval workflows", () => {
 		await context.store.appendEvent(
 			{
 				created_at: 1_710_430_000,
+				context: {
+					branch: "main",
+					cwd: "/work/bodhi",
+					repo_id: "/work/bodhi/.git",
+					relative_cwd: ".",
+					tool: "shell.zsh",
+					worktree_root: "/work/bodhi",
+				},
 				event_id: "evt-retrieval-shell-1",
 				metadata: {
 					command: "git status",
@@ -92,5 +100,89 @@ describe("retrieval workflows", () => {
 		expect(result.facts.length).toBeLessThanOrEqual(3);
 		expect(result.facts.map((fact) => fact.key)).toContain("preferred_editor");
 		expect(result.facts.map((fact) => fact.key)).not.toContain("irrelevant_fact_19");
+	});
+
+	test("retrieval applies typed repo and branch filters structurally", async () => {
+		const context = createTestContext();
+		await context.store.appendEvent(
+			{
+				created_at: 1_710_431_000,
+				context: {
+					branch: "main",
+					cwd: "/work/bodhi",
+					repo_id: "/work/bodhi/.git",
+					relative_cwd: ".",
+					tool: "shell.zsh",
+					worktree_root: "/work/bodhi",
+				},
+				event_id: "evt-retrieval-structural-1",
+				metadata: {
+					command: "bun test",
+					cwd: "/work/bodhi",
+					duration_ms: 1200,
+					exit_code: 0,
+				},
+				type: "shell.command.executed",
+			},
+			"shell",
+		);
+		await context.store.appendEvent(
+			{
+				created_at: 1_710_431_100,
+				context: {
+					branch: "feature/auth",
+					cwd: "/work/bodhi",
+					repo_id: "/work/bodhi/.git",
+					relative_cwd: ".",
+					tool: "shell.zsh",
+					worktree_root: "/work/bodhi-auth",
+				},
+				event_id: "evt-retrieval-structural-2",
+				metadata: {
+					command: "bun test",
+					cwd: "/work/bodhi",
+					duration_ms: 900,
+					exit_code: 1,
+				},
+				type: "shell.command.executed",
+			},
+			"shell",
+		);
+		await context.store.appendEvent(
+			{
+				created_at: 1_710_431_200,
+				context: {
+					branch: "feature/auth",
+					cwd: "/work/other",
+					repo_id: "/work/other/.git",
+					relative_cwd: ".",
+					tool: "shell.zsh",
+					worktree_root: "/work/other",
+				},
+				event_id: "evt-retrieval-structural-3",
+				metadata: {
+					command: "bun test",
+					cwd: "/work/other",
+					duration_ms: 1000,
+					exit_code: 0,
+				},
+				type: "shell.command.executed",
+			},
+			"shell",
+		);
+
+		const service = createRetrievalService({
+			store: context.store,
+		});
+
+		const result = await service.retrieve("What commands have I run?", {
+			branch: "feature/auth",
+			repo: "/work/bodhi/.git",
+		});
+
+		expect(result.plan.branch).toBe("feature/auth");
+		expect(result.plan.repo).toBe("/work/bodhi/.git");
+		expect(result.events).toHaveLength(1);
+		expect(result.events[0]?.event_id).toBe("evt-retrieval-structural-2");
 	});
 });

@@ -1,4 +1,4 @@
-import type { EventType, Fact, Store, StoredEvent } from "@bodhi/types";
+import type { EventFilter, EventType, Fact, Store, StoredEvent } from "@bodhi/types";
 
 import { createRetrievalPlanner } from "./planner";
 import type { RetrievalOverrides, RetrievalPlanner, RetrievedContext } from "./types";
@@ -17,43 +17,42 @@ interface RankedEvent {
 	score: number;
 }
 
-function matchesEventFilters(
-	event: StoredEvent,
-	overrides: {
-		after?: number;
-		before?: number;
-		eventTypes: readonly EventType[];
+function buildEventFilter(
+	plan: Pick<
+		RetrievalOverrides,
+		"after" | "before" | "branch" | "cwd" | "repo" | "thread" | "tool"
+	> & {
+		eventType?: EventType;
+		source?: StoredEvent["source"];
+		limit: number;
 	},
-): boolean {
-	if (overrides.after && event.created_at < overrides.after) {
-		return false;
-	}
-	if (overrides.before && event.created_at > overrides.before) {
-		return false;
-	}
-	if (overrides.eventTypes.length > 0 && !overrides.eventTypes.includes(event.type)) {
-		return false;
-	}
-	return true;
+): EventFilter {
+	return {
+		after: plan.after,
+		before: plan.before,
+		branch: plan.branch,
+		cwd: plan.cwd,
+		limit: plan.limit,
+		repo: plan.repo,
+		thread: plan.thread,
+		tool: plan.tool,
+		type: plan.eventType,
+		source: plan.source,
+	};
 }
 
 async function getRecentEventsByType(
 	store: Store,
 	eventTypes: readonly EventType[],
 	limit: number,
-	overrides: {
-		after?: number;
-		before?: number;
-	},
+	overrides: Pick<
+		RetrievalOverrides,
+		"after" | "before" | "branch" | "cwd" | "repo" | "thread" | "tool"
+	>,
 ): Promise<StoredEvent[]> {
 	const batches = await Promise.all(
 		eventTypes.map((eventType) =>
-			store.getEvents({
-				after: overrides.after,
-				before: overrides.before,
-				limit,
-				type: eventType,
-			}),
+			store.getEvents(buildEventFilter({ ...overrides, eventType, limit })),
 		),
 	);
 
@@ -97,11 +96,20 @@ export function createRetrievalService(options: RetrievalServiceOptions): Retrie
 			const rankedEvents: RankedEvent[] = [];
 			if (plan.includeEvents) {
 				if (plan.query.length > 0) {
-					const textMatches = await options.store.searchEvents(plan.query, plan.limit * 3);
+					const textMatches = await options.store.searchEvents(
+						plan.query,
+						buildEventFilter({
+							after: plan.after,
+							before: plan.before,
+							branch: plan.branch,
+							cwd: plan.cwd,
+							limit: plan.limit * 3,
+							repo: plan.repo,
+							thread: plan.thread,
+							tool: plan.tool,
+						}),
+					);
 					for (const event of textMatches) {
-						if (!matchesEventFilters(event, plan)) {
-							continue;
-						}
 						rankedEvents.push({
 							event,
 							score: 100,
@@ -117,12 +125,14 @@ export function createRetrievalService(options: RetrievalServiceOptions): Retrie
 						{
 							after: plan.after,
 							before: plan.before,
+							branch: plan.branch,
+							cwd: plan.cwd,
+							repo: plan.repo,
+							thread: plan.thread,
+							tool: plan.tool,
 						},
 					);
 					for (const event of recentMatches) {
-						if (!matchesEventFilters(event, plan)) {
-							continue;
-						}
 						rankedEvents.push({
 							event,
 							score: 50,

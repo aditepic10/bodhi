@@ -31,26 +31,65 @@ function renderEventSummary(events: StoredEvent[]): string {
 	return events.map(renderEventLine).join("\n");
 }
 
+function repoNameFromContext(event: StoredEvent): string | undefined {
+	const repoId = event.context?.repo_id;
+	if (!repoId) {
+		return undefined;
+	}
+
+	const segments = repoId.split("/").filter(Boolean);
+	const lastSegment = segments.at(-1);
+	if (!lastSegment) {
+		return undefined;
+	}
+	if (lastSegment === ".git" || lastSegment.endsWith(".git")) {
+		return segments.at(-2) ?? lastSegment;
+	}
+
+	return lastSegment;
+}
+
+function renderContextDetails(event: StoredEvent): string {
+	const details: string[] = [];
+	const repoName = repoNameFromContext(event);
+	if (repoName) {
+		details.push(`repo ${sanitizePromptField(repoName)}`);
+	}
+	if (event.context?.branch) {
+		details.push(`branch ${sanitizePromptField(event.context.branch)}`);
+	}
+	if (event.context?.relative_cwd) {
+		details.push(`path ${sanitizePromptField(event.context.relative_cwd)}`);
+	} else if (event.context?.cwd) {
+		details.push(`cwd ${sanitizePromptField(event.context.cwd)}`);
+	}
+	if (event.context?.tool) {
+		details.push(`tool ${sanitizePromptField(event.context.tool)}`);
+	}
+
+	return details.length > 0 ? ` (${details.join(", ")})` : "";
+}
+
 function renderEventLine(event: StoredEvent): string {
 	switch (event.type) {
 		case "shell.command.executed":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.command)} (cwd ${sanitizePromptField(event.metadata.cwd)})`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.command)}${renderContextDetails(event)}`;
 		case "shell.command.started":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.command)} (cwd ${sanitizePromptField(event.metadata.cwd)})`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.command)}${renderContextDetails(event)}`;
 		case "git.commit.created":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.branch)} ${sanitizePromptField(event.metadata.message)}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.message)}${renderContextDetails(event)}`;
 		case "git.checkout":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.from_branch ?? "")} -> ${sanitizePromptField(event.metadata.to_branch ?? "")}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.from_branch ?? "")} -> ${sanitizePromptField(event.metadata.to_branch ?? "")}${renderContextDetails(event)}`;
 		case "git.merge":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.merged_branch)} into ${sanitizePromptField(event.metadata.branch ?? "")}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.merged_branch)} into ${sanitizePromptField(event.metadata.branch ?? "")}${renderContextDetails(event)}`;
 		case "git.rewrite":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.rewrite_type)} ${String(event.metadata.rewritten_commits)}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.rewrite_type)} ${String(event.metadata.rewritten_commits)}${renderContextDetails(event)}`;
 		case "ai.prompt":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.content)}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.content)}${renderContextDetails(event)}`;
 		case "ai.tool_call":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.tool_name)} ${sanitizePromptField(event.metadata.target ?? "")}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.tool_name)} ${sanitizePromptField(event.metadata.target ?? "")}${renderContextDetails(event)}`;
 		case "note.created":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.content)}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.content)}${renderContextDetails(event)}`;
 	}
 }
 

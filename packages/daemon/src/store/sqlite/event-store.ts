@@ -433,18 +433,61 @@ export function createEventStore(db: Database): EventStoreMethods {
 				rows.map((row) => row.envelope),
 			);
 		},
-		async searchEvents(query: string, limit?: number) {
+		async searchEvents(query: string, filter: EventFilter = {}) {
+			const clauses = ["events_fts MATCH ?"];
+			const params: Array<string | number> = [normalizeFtsQuery(query)];
+
+			if (filter.type) {
+				clauses.push("e.type = ?");
+				params.push(filter.type);
+			}
+			if (filter.source) {
+				clauses.push("e.source = ?");
+				params.push(filter.source);
+			}
+			if (filter.repo) {
+				clauses.push("c.repo_id = ?");
+				params.push(filter.repo);
+			}
+			if (filter.branch) {
+				clauses.push("c.branch = ?");
+				params.push(filter.branch);
+			}
+			if (filter.tool) {
+				clauses.push("c.tool = ?");
+				params.push(filter.tool);
+			}
+			if (filter.thread) {
+				clauses.push("c.thread_id = ?");
+				params.push(filter.thread);
+			}
+			if (filter.cwd) {
+				clauses.push("c.cwd = ?");
+				params.push(filter.cwd);
+			}
+			if (filter.after) {
+				clauses.push("e.created_at >= ?");
+				params.push(filter.after);
+			}
+			if (filter.before) {
+				clauses.push("e.created_at <= ?");
+				params.push(filter.before);
+			}
+
+			params.push(clampLimit(filter.limit));
+
 			const envelopes = db
-				.query<EventEnvelopeRow, [string, number]>(
+				.query<EventEnvelopeRow, Array<string | number>>(
 					`
 						SELECT e.* FROM events_fts f
 						JOIN events e ON e._rowid = f.rowid
-						WHERE events_fts MATCH ?
+						LEFT JOIN event_contexts c ON c.event_id = e.id
+						WHERE ${clauses.join(" AND ")}
 						ORDER BY bm25(events_fts), e.created_at DESC
 						LIMIT ?
 					`,
 				)
-				.all(normalizeFtsQuery(query), clampLimit(limit));
+				.all(...params);
 
 			return hydrateEvents(db, envelopes);
 		},

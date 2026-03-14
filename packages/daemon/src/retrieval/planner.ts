@@ -157,13 +157,18 @@ export function createRetrievalPlanner(options: RetrievalPlannerOptions = {}): R
 			return {
 				after: overrides.after ?? derivedTimeWindow.after,
 				before: overrides.before ?? derivedTimeWindow.before,
+				branch: overrides.branch,
+				cwd: overrides.cwd,
 				eventTypes: constrained.eventTypes,
 				includeEvents: overrides.includeEvents ?? true,
 				includeFacts: overrides.includeFacts ?? true,
 				limit: clampLimit(overrides.limit),
 				query: terms.join(" "),
+				repo: overrides.repo,
 				sources: constrained.sources,
+				thread: overrides.thread,
 				terms,
+				tool: overrides.tool,
 			};
 		},
 	};

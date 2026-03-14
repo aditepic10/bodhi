@@ -24,7 +24,7 @@ describe("sqlite store workflows", () => {
 		});
 
 		await store.appendEvent(event, "shell");
-		const results = await store.searchEvents("kubectl", 10);
+		const results = await store.searchEvents("kubectl", { limit: 10 });
 
 		expect(results).toHaveLength(1);
 		expect(results[0]?.event_id).toBe("evt-search");
@@ -45,7 +45,7 @@ describe("sqlite store workflows", () => {
 		await store.appendEvent(event, "shell");
 		vacuum(store.db);
 
-		const results = await store.searchEvents("--oneline", 10);
+		const results = await store.searchEvents("--oneline", { limit: 10 });
 		expect(results).toHaveLength(1);
 		expect(results[0]?.event_id).toBe("evt-vacuum");
 	});
