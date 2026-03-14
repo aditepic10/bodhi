@@ -1,4 +1,12 @@
-import type { ConversationMessage, Fact, FactCreatedBy, FactStatus, StoredEvent } from "./entities";
+import type {
+	ChatSession,
+	ChatSessionListEntry,
+	ConversationMessage,
+	Fact,
+	FactCreatedBy,
+	FactStatus,
+	StoredEvent,
+} from "./entities";
 import type { BodhiEvent, EventType } from "./events";
 
 export interface EventFilter {
@@ -22,6 +30,21 @@ export interface FactFilter {
 	limit?: number;
 }
 
+export interface ChatSessionSeed {
+	session_id: string;
+	repo_id?: string;
+	worktree_root?: string;
+	cwd?: string;
+	branch?: string;
+}
+
+export interface ChatSessionListFilter {
+	repo_id?: string;
+	worktree_root?: string;
+	cwd?: string;
+	limit?: number;
+}
+
 export interface Store {
 	appendEvent(event: BodhiEvent, source: StoredEvent["source"]): Promise<StoredEvent>;
 	getEvents(filter?: EventFilter): Promise<StoredEvent[]>;
@@ -41,8 +64,11 @@ export interface Store {
 		content: string,
 		session_id: string,
 	): Promise<string>;
+	upsertChatSession(session: ChatSessionSeed): Promise<ChatSession>;
+	getChatSession(session_id: string): Promise<ChatSession | null>;
+	listChatSessions(filter?: ChatSessionListFilter): Promise<ChatSessionListEntry[]>;
 	getConversation(session_id: string): Promise<ConversationMessage[]>;
-	pruneConversations(maxSessions: number): Promise<number>;
+	pruneChatSessions(maxSessions: number): Promise<number>;
 
 	close(): void;
 }

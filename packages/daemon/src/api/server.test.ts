@@ -384,6 +384,7 @@ describe("api server workflows", () => {
 
 		const response = await app.request("http://localhost/agent", {
 			body: JSON.stringify({
+				cwd: "/work/bodhi",
 				message: "What commands have I run recently?",
 				session_id: "agent-session-1",
 			}),
@@ -404,6 +405,61 @@ describe("api server workflows", () => {
 			"user",
 			"assistant",
 		]);
+		expect(await store.getChatSession("agent-session-1")).toMatchObject({
+			cwd: "/work/bodhi",
+			session_id: "agent-session-1",
+			title: "What commands have I run recently?",
+		});
+	});
+
+	test("chat session routes create, fetch, and list sessions", async () => {
+		const { app } = createApiFixture();
+
+		const created = await app.request("http://localhost/chat/sessions", {
+			body: JSON.stringify({
+				cwd: "/work/bodhi",
+			}),
+			headers: {
+				"content-type": "application/json",
+			},
+			method: "POST",
+		});
+		const createdBody = (await created.json()) as {
+			session: {
+				cwd?: string;
+				repo_id?: string;
+				session_id: string;
+				worktree_root?: string;
+			};
+		};
+		const createdId = createdBody.session.session_id;
+
+		const fetched = await app.request(`http://localhost/chat/sessions/${createdId}`);
+		const fetchedBody = (await fetched.json()) as {
+			session: {
+				session_id: string;
+			};
+		};
+
+		const listed = await app.request(
+			`http://localhost/chat/sessions?cwd=${encodeURIComponent("/work/bodhi")}`,
+		);
+		const listedBody = (await listed.json()) as {
+			sessions: Array<{
+				session_id: string;
+				workspace_rank: number;
+			}>;
+		};
+
+		expect(created.status).toBe(201);
+		expect(createdBody.session.cwd).toBe("/work/bodhi");
+		expect(fetched.status).toBe(200);
+		expect(fetchedBody.session.session_id).toBe(createdId);
+		expect(listed.status).toBe(200);
+		expect(listedBody.sessions[0]).toMatchObject({
+			session_id: createdId,
+			workspace_rank: 2,
+		});
 	});
 
 	test("serve config disables idle timeouts for both unix and tcp transports", () => {

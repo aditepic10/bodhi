@@ -7,7 +7,13 @@ import { join } from "node:path";
 import { type BodhiConfig, BodhiConfigSchema } from "@bodhi/types";
 
 import { type CliRuntime, runCli } from "./cli";
-import type { JsonObject, JsonResponse, JsonValue, RequestOptions } from "./cli/types";
+import type {
+	CliLineReader,
+	JsonObject,
+	JsonResponse,
+	JsonValue,
+	RequestOptions,
+} from "./cli/types";
 import { applyPragmas, createStore, ensureCoreSchema, setupFts } from "./store/sqlite";
 
 const tempDirs: string[] = [];
@@ -52,10 +58,19 @@ function createRuntime(
 	overrides: Partial<CliRuntime> = {},
 ): CliRuntime & { _buffers: ReturnType<typeof createBuffers> } {
 	const buffers = createBuffers();
+	const defaultLineReader: CliLineReader = {
+		close() {},
+		readLine() {
+			return Promise.resolve(null);
+		},
+	};
 	return {
 		argv: [],
 		commandExists() {
 			return true;
+		},
+		createLineReader() {
+			return defaultLineReader;
 		},
 		cwd() {
 			return process.cwd();
@@ -65,6 +80,9 @@ function createRuntime(
 		},
 		loadConfig() {
 			return config;
+		},
+		onSignal() {
+			return () => {};
 		},
 		readStdin() {
 			return Promise.resolve("");
@@ -107,6 +125,18 @@ function createRuntime(
 		...overrides,
 		_buffers: buffers,
 	} as CliRuntime & { _buffers: ReturnType<typeof createBuffers> };
+}
+
+function createScriptedLineReader(lines: Array<string | null>): CliLineReader {
+	let index = 0;
+	return {
+		close() {},
+		readLine() {
+			const value = lines[index] ?? null;
+			index += 1;
+			return Promise.resolve(value);
+		},
+	};
 }
 
 function initGitRepo(repoPath: string): void {
@@ -266,6 +296,160 @@ describe("cli workflows", () => {
 
 		expect(exitCode).toBe(0);
 		expect(stdout).toBe("hello world\n");
+	});
+
+	test("bare bodhi starts a new chat session and prints an exact resume command on exit", async () => {
+		const root = makeTempDir();
+		const config = makeConfig(root);
+		const requests: Array<{ method?: string; path: string; body?: JsonObject }> = [];
+		const runtime = createRuntime(config, {
+			createLineReader() {
+				return createScriptedLineReader(["How is retrieval ranked?", null]);
+			},
+			async requestJson<TResponse = unknown, _TBody extends JsonValue = JsonObject>(
+				_config: BodhiConfig,
+				path: string,
+				options?: RequestOptions<_TBody>,
+			) {
+				requests.push({
+					body:
+						options?.body && typeof options.body === "object" && !Array.isArray(options.body)
+							? options.body
+							: undefined,
+					method: options?.method,
+					path,
+				});
+				if (path === "/chat/sessions") {
+					return {
+						body: {
+							session: {
+								created_at: 1_710_000_000,
+								cwd: root,
+								session_id: "chat-session-1",
+								updated_at: 1_710_000_000,
+							},
+						} as TResponse,
+						status: 201,
+					};
+				}
+				throw new Error(`unexpected path ${path}`);
+			},
+			async requestSse(_config, path, body, onEvent) {
+				requests.push({ body, method: "POST", path });
+				onEvent({ text: "Here is the latest retrieval state.", type: "text-delta" });
+				onEvent({ session_id: "chat-session-1", type: "finish" });
+			},
+		});
+
+		const exitCode = await runCli([], runtime);
+		const { stdout } = runtime._buffers.text();
+
+		expect(exitCode).toBe(0);
+		expect(requests).toEqual([
+			{
+				body: { cwd: process.cwd() },
+				method: "POST",
+				path: "/chat/sessions",
+			},
+			{
+				body: {
+					cwd: process.cwd(),
+					message: "How is retrieval ranked?",
+					session_id: "chat-session-1",
+				},
+				method: "POST",
+				path: "/agent",
+			},
+		]);
+		expect(stdout).toContain("Here is the latest retrieval state.");
+		expect(stdout).toContain("Resume this session with:");
+		expect(stdout).toContain("bodhi --resume chat-session-1");
+	});
+
+	test("resume loads an exact chat session before entering chat mode", async () => {
+		const root = makeTempDir();
+		const config = makeConfig(root);
+		const requests: string[] = [];
+		const runtime = createRuntime(config, {
+			createLineReader() {
+				return createScriptedLineReader([null]);
+			},
+			async requestJson<_TResponse = unknown>() {
+				throw new Error("requestJson override must include path");
+			},
+		});
+		runtime.requestJson = async <TResponse = unknown>(
+			_config: BodhiConfig,
+			path: string,
+		): Promise<JsonResponse<TResponse>> => {
+			requests.push(path);
+			if (path === "/chat/sessions/resume-me") {
+				return {
+					body: {
+						session: {
+							created_at: 1_710_000_001,
+							cwd: root,
+							session_id: "resume-me",
+							updated_at: 1_710_000_002,
+						},
+					} as TResponse,
+					status: 200,
+				};
+			}
+			throw new Error(`unexpected path ${path}`);
+		};
+
+		const exitCode = await runCli(["--resume", "resume-me"], runtime);
+		const { stdout } = runtime._buffers.text();
+
+		expect(exitCode).toBe(0);
+		expect(requests).toEqual(["/chat/sessions/resume-me"]);
+		expect(stdout).toContain("bodhi --resume resume-me");
+	});
+
+	test("sessions lists workspace-prioritized chat sessions", async () => {
+		const root = makeTempDir();
+		const config = makeConfig(root);
+		const runtime = createRuntime(config, {
+			cwd() {
+				return join(root, "repo");
+			},
+			async requestJson<TResponse = unknown>(_config: BodhiConfig, path: string) {
+				expect(path).toBe(`/chat/sessions?cwd=${encodeURIComponent(join(root, "repo"))}`);
+				return {
+					body: {
+						sessions: [
+							{
+								created_at: 1_710_000_000,
+								cwd: join(root, "repo"),
+								session_id: "session-local",
+								title: "Refine retrieval ranking",
+								updated_at: 1_710_000_100,
+								workspace_rank: 0,
+							},
+							{
+								created_at: 1_710_000_000,
+								cwd: join(root, "other"),
+								last_user_message_preview: "Investigate auth retries",
+								session_id: "session-other",
+								updated_at: 1_710_000_050,
+								workspace_rank: 3,
+							},
+						],
+					} as TResponse,
+					status: 200,
+				};
+			},
+		});
+
+		const exitCode = await runCli(["sessions"], runtime);
+		const { stdout } = runtime._buffers.text();
+
+		expect(exitCode).toBe(0);
+		expect(stdout).toContain("Sessions:");
+		expect(stdout).toContain("* session-loca");
+		expect(stdout).toContain("Refine retrieval ranking");
+		expect(stdout).toContain("Investigate auth retries");
 	});
 
 	test("recall surfaces daemon disconnects clearly when streaming ends early", async () => {

@@ -74,6 +74,14 @@ describe("sqlite integrity boundaries", () => {
 		store.db
 			.query(
 				`
+					INSERT INTO chat_sessions (session_id, created_at, updated_at)
+					VALUES (?, ?, ?)
+				`,
+			)
+			.run("session-1", 1_710_430_700, 1_710_430_700);
+		store.db
+			.query(
+				`
 					INSERT INTO conversations (id, role, content, session_id, created_at)
 					VALUES (?, ?, ?, ?, ?)
 				`,

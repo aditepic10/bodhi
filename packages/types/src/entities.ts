@@ -60,6 +60,22 @@ export const ConversationEntrySchema = ConversationTurnSchema.extend({
 	created_at: z.number().int(),
 });
 
+export const ChatSessionSchema = z.object({
+	session_id: z.string(),
+	created_at: z.number().int(),
+	updated_at: z.number().int(),
+	repo_id: z.string().optional(),
+	worktree_root: z.string().optional(),
+	cwd: z.string().optional(),
+	branch: z.string().optional(),
+	title: z.string().optional(),
+	last_user_message_preview: z.string().optional(),
+});
+
+export const ChatSessionListEntrySchema = ChatSessionSchema.extend({
+	workspace_rank: z.number().int().min(0),
+});
+
 export type EventSource = z.infer<typeof EventSourceSchema>;
 export type FactCreatedBy = z.infer<typeof FactCreatedBySchema>;
 export type FactStatus = z.infer<typeof FactStatusSchema>;
@@ -69,3 +85,5 @@ export type Fact = z.infer<typeof FactSchema>;
 export type FactLink = z.infer<typeof FactLinkSchema>;
 export type ConversationMessage = z.infer<typeof ConversationTurnSchema>;
 export type ConversationEntry = z.infer<typeof ConversationEntrySchema>;
+export type ChatSession = z.infer<typeof ChatSessionSchema>;
+export type ChatSessionListEntry = z.infer<typeof ChatSessionListEntrySchema>;

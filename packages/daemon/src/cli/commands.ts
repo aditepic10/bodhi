@@ -12,6 +12,7 @@ import {
 	type SupportedShell,
 } from "../capture/shell";
 import { handleAiCapture } from "./ai-capture";
+import { listChatSessions, runInteractiveChat } from "./chat";
 import {
 	configPathFor,
 	ensureCliConfigDirs,
@@ -259,6 +260,13 @@ export async function runCli(
 	const [command, ...args] = argv;
 	switch (command) {
 		case undefined:
+			return runInteractiveChat(runtime);
+		case "--resume":
+			if (!args[0]) {
+				writeLine(runtime.stderr, "Usage: bodhi --resume <session-id>");
+				return 1;
+			}
+			return runInteractiveChat(runtime, { resumeSessionId: args[0] });
 		case "-h":
 		case "--help":
 		case "help":
@@ -272,6 +280,8 @@ export async function runCli(
 			return handleStop(runtime);
 		case "status":
 			return handleStatus(runtime);
+		case "sessions":
+			return listChatSessions(runtime);
 		case "recall":
 			return handleRecall(runtime, args);
 		case "internal":

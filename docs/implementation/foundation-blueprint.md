@@ -252,13 +252,23 @@ This retrieval phase is the workflow layer. It should make recent, structured ac
 
 After AI capture and retrieval/intel refinement, expose the existing session-capable agent backend through a persistent CLI chat surface before building a TUI.
 
+See the dedicated implementation plan in [cli-chat-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/cli-chat-blueprint.md).
+The next foundation step beyond that surface is [chat-substrate-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/chat-substrate-blueprint.md).
+
 Phase 1 goal:
 
-- `bodhi chat`
+- bare `bodhi` starts a new interactive session
+- exiting prints `bodhi --resume <session-id>`
+- `bodhi --resume <session-id>` resumes an exact session
 - session-aware streaming responses
-- user-visible session continuity on top of the existing `/agent` route and `conversations` store
+- a dedicated session metadata layer on top of the existing `/agent` route and `conversations` store
 
-The TUI should come after this CLI surface is proven.
+The TUI should come after the stronger chat substrate is implemented:
+
+- explicit recall vs chat split
+- history-aware chat requests
+- message-oriented chat storage/runtime contract
+- TUI-friendly chat streaming semantics
 
 ### Later derived memory and insights
 

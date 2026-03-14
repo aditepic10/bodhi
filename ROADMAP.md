@@ -90,9 +90,21 @@ Retrieval and intel quality:
 ## Phase 6
 
 Persistent CLI chat:
-- expose the existing session-capable agent backend through `bodhi chat`
-- keep session continuity in the current `conversations` store
+- detailed implementation blueprint in [cli-chat-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/cli-chat-blueprint.md)
+- make bare `bodhi` the primary interactive chat entrypoint
+- print exact resume commands on exit: `bodhi --resume <session-id>`
+- add first-class session metadata for listing and future TUI grouping
 - prove chat/session UX before building a TUI
+
+## Phase 6.5
+
+Chat substrate:
+- detailed implementation blueprint in [chat-substrate-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/chat-substrate-blueprint.md)
+- split ephemeral `recall` from persistent `chat` at the route/protocol layer
+- make chat history-aware instead of prompt-only
+- evolve `conversations` forward as real chat state rather than passive transcript storage
+- align persistent chat with AI SDK UI-message best practices
+- make the streaming contract suitable for both CLI and future TUI clients
 
 ## Phase 7
 
@@ -100,7 +112,7 @@ First workflows and clients:
 - `bodhi standup`
 - `bodhi resume [branch]`
 - `bodhi chat`
-- TUI once chat and retrieval feel trustworthy
+- TUI once the chat substrate and retrieval feel trustworthy
 - facts review workflow
 - export path
 - `bodhi doctor` improvements

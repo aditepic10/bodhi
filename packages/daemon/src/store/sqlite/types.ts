@@ -3,6 +3,7 @@ import type { ActivityContext, BodhiEvent, EventType, Store, StoredEvent } from 
 
 import type { aiPromptEventsTable } from "../ai-prompt-events.sql";
 import type { aiToolCallEventsTable } from "../ai-tool-call-events.sql";
+import type { chatSessionsTable } from "../chat-sessions.sql";
 import type { eventContextsTable } from "../event-contexts.sql";
 import type { eventsTable } from "../events.sql";
 import type { factsTable } from "../facts.sql";
@@ -22,6 +23,7 @@ export const INTEL_VISIBILITY_TIMEOUT_SECONDS = 5 * 60;
 export type EventEnvelopeRow = typeof eventsTable.$inferSelect;
 export type EventContextRow = typeof eventContextsTable.$inferSelect;
 export type EventContextInsert = typeof eventContextsTable.$inferInsert;
+export type ChatSessionRow = typeof chatSessionsTable.$inferSelect;
 export type ShellCommandEventRow = typeof shellCommandEventsTable.$inferSelect;
 export type GitCommitEventRow = typeof gitCommitEventsTable.$inferSelect;
 export type GitCommitFileRow = typeof gitCommitFilesTable.$inferSelect;

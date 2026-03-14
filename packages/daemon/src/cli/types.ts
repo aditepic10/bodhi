@@ -44,12 +44,23 @@ export interface JsonResponse<TBody = unknown> {
 	status: number;
 }
 
+export interface SseRequestOptions {
+	signal?: AbortSignal;
+}
+
+export interface CliLineReader {
+	close(): void;
+	readLine(prompt: string): Promise<string | null>;
+}
+
 export interface CliRuntime {
 	argv: readonly string[];
 	commandExists(command: string): boolean;
+	createLineReader(): CliLineReader;
 	cwd(): string;
 	isProcessAlive(pid: number): boolean;
 	loadConfig(overrides?: Record<string, unknown>): BodhiConfig;
+	onSignal(signal: NodeJS.Signals, handler: () => void): () => void;
 	readStdin(): Promise<string>;
 	requestJson<TResponse = unknown, TBody extends JsonValue = JsonObject>(
 		config: BodhiConfig,
@@ -61,6 +72,7 @@ export interface CliRuntime {
 		path: string,
 		body: JsonObject,
 		onEvent: (payload: JsonObject) => void,
+		options?: SseRequestOptions,
 	): Promise<void>;
 	sleep(ms: number): Promise<void>;
 	signalProcess(pid: number, signal: NodeJS.Signals): void;

@@ -42,6 +42,7 @@ describe("sqlite migration workflows", () => {
 				expect.arrayContaining([
 					"ai_prompt_events",
 					"ai_tool_call_events",
+					"chat_sessions",
 					"conversations",
 					"event_contexts",
 					"events",
@@ -127,6 +128,21 @@ describe("sqlite migration workflows", () => {
 						from: "event_id",
 						on_delete: "CASCADE",
 						table: "events",
+					}),
+				]),
+			);
+
+			const conversationFks = db
+				.query<{ table: string; from: string; on_delete: string }, []>(
+					"PRAGMA foreign_key_list(conversations)",
+				)
+				.all();
+			expect(conversationFks).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						from: "session_id",
+						on_delete: "CASCADE",
+						table: "chat_sessions",
 					}),
 				]),
 			);

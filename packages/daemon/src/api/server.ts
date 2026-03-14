@@ -9,6 +9,7 @@ import type { PipelineLike, SqliteStore } from "../store/sqlite";
 import type { ApiContext, ApiContextOverrides } from "./context";
 import { createApiContext, jsonError, MAX_JSON_BYTES } from "./context";
 import { registerAgentRoute } from "./routes/agent";
+import { registerChatSessionsRoute } from "./routes/chat-sessions";
 import { registerFactsRoute } from "./routes/facts";
 import { registerHealthRoute } from "./routes/health";
 import { registerIngestRoute } from "./routes/ingest";
@@ -176,6 +177,7 @@ export function createApiApp(
 	registerIngestRoute(app, api);
 	registerFactsRoute(app, api);
 	registerQueryRoute(app, api);
+	registerChatSessionsRoute(app, api);
 	registerAgentRoute(app, api);
 	registerStreamRoute(app, api);
 

@@ -10,13 +10,16 @@ type RuntimeHealthProbe = Pick<CliRuntime, "isProcessAlive" | "requestJson" | "s
 export const START_TIMEOUT_MS = 5_000;
 export const STOP_TIMEOUT_MS = 5_000;
 export const POLL_INTERVAL_MS = 100;
-export const HELP_TEXT = `bodhi <command>
+export const HELP_TEXT = `bodhi [--resume <session-id>] [command]
 
 Commands:
+  bodhi
+  bodhi --resume <session-id>
   bodhi init [--assistant-scope global|project|none]
   bodhi start
   bodhi stop
   bodhi status
+  bodhi sessions
   bodhi recall "query"`;
 
 export function writeLine(output: WritableLike, value = ""): void {

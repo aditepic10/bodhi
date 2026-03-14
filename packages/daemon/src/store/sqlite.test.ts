@@ -62,6 +62,119 @@ describe("sqlite store workflows", () => {
 		expect(rows[0]?.event_id).toBe("evt-duplicate");
 	});
 
+	test("chat sessions track titles, previews, and workspace-prioritized listing", async () => {
+		await store.upsertChatSession({
+			branch: "main",
+			cwd: "/work/bodhi",
+			repo_id: "/work/bodhi/.git",
+			session_id: "session-local",
+			worktree_root: "/work/bodhi",
+		});
+		await store.appendMessage(
+			"user",
+			"Investigate retrieval weighting for recent AI events",
+			"session-local",
+		);
+		await Bun.sleep(5);
+		await store.upsertChatSession({
+			cwd: "/work/other",
+			session_id: "session-other",
+		});
+		await store.appendMessage("user", "Check auth retry loop", "session-other");
+
+		const local = await store.getChatSession("session-local");
+		const listed = await store.listChatSessions({
+			cwd: "/work/bodhi",
+			repo_id: "/work/bodhi/.git",
+			worktree_root: "/work/bodhi",
+		});
+
+		expect(local).toMatchObject({
+			last_user_message_preview: "Investigate retrieval weighting for recent AI events",
+			session_id: "session-local",
+			title: "Investigate retrieval weighting for recent AI events",
+		});
+		expect(listed.map((session) => [session.session_id, session.workspace_rank])).toEqual([
+			["session-local", 0],
+			["session-other", 3],
+		]);
+	});
+
+	test("chat session summaries are redacted before being stored", async () => {
+		await store.appendMessage(
+			"user",
+			"Use token sk-ant-super-secret-value when testing this flow",
+			"session-secret",
+		);
+
+		const session = await store.getChatSession("session-secret");
+
+		expect(session).toMatchObject({
+			last_user_message_preview: "Use token [REDACTED] when testing this flow",
+			title: "Use token [REDACTED] when testing this flow",
+		});
+	});
+
+	test("chat session workspace metadata is not retagged after resume from another cwd", async () => {
+		await store.upsertChatSession({
+			branch: "main",
+			cwd: "/work/bodhi",
+			repo_id: "/work/bodhi/.git",
+			session_id: "session-stable",
+			worktree_root: "/work/bodhi",
+		});
+
+		await store.upsertChatSession({
+			branch: "feature/other",
+			cwd: "/work/other",
+			repo_id: "/work/other/.git",
+			session_id: "session-stable",
+			worktree_root: "/work/other",
+		});
+
+		const session = await store.getChatSession("session-stable");
+
+		expect(session).toMatchObject({
+			branch: "main",
+			cwd: "/work/bodhi",
+			repo_id: "/work/bodhi/.git",
+			worktree_root: "/work/bodhi",
+		});
+	});
+
+	test("chat session listing is deterministic when timestamps tie", async () => {
+		await store.upsertChatSession({
+			cwd: "/tmp",
+			session_id: "session-a",
+		});
+		await store.upsertChatSession({
+			cwd: "/tmp",
+			session_id: "session-b",
+		});
+
+		const listed = await store.listChatSessions({ cwd: "/tmp" });
+
+		expect(listed.map((session) => session.session_id)).toEqual(["session-b", "session-a"]);
+	});
+
+	test("pruning chat sessions removes old session metadata and cascades to messages", async () => {
+		await store.appendMessage("user", "one", "session-1");
+		await Bun.sleep(5);
+		await store.appendMessage("user", "two", "session-2");
+		await Bun.sleep(5);
+		await store.appendMessage("user", "three", "session-3");
+
+		const pruned = await store.pruneChatSessions(1);
+		const remainingMessages = await store.getConversation("session-3");
+		const deletedMessages = await store.getConversation("session-1");
+
+		expect(pruned).toBe(2);
+		expect(await store.getChatSession("session-3")).not.toBeNull();
+		expect(await store.getChatSession("session-1")).toBeNull();
+		expect(remainingMessages).toHaveLength(1);
+		expect(deletedMessages).toHaveLength(0);
+	});
+
 	test("intel facts become pending when auto approve is disabled", async () => {
 		store.close();
 		store = createTestStore({

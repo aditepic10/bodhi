@@ -1,14 +1,59 @@
 import { spawn } from "node:child_process";
 import { openSync } from "node:fs";
 import { join } from "node:path";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 
 import { loadConfig } from "../config";
 import { requestJson, requestSse } from "./http";
-import type { CliRuntime } from "./types";
+import type { CliLineReader, CliRuntime } from "./types";
 
 function defaultCommandExists(command: string): boolean {
 	return Bun.which(command) !== null;
+}
+
+function createDefaultLineReader(): CliLineReader {
+	const rl = createInterface({
+		input: process.stdin,
+		output: process.stdout,
+		terminal: true,
+	});
+
+	return {
+		close() {
+			rl.close();
+		},
+		readLine(prompt: string) {
+			return new Promise((resolve) => {
+				let settled = false;
+				const cleanup = () => {
+					rl.off("close", handleClose);
+					rl.off("SIGINT", handleSigint);
+				};
+				const finish = (value: string | null) => {
+					if (settled) {
+						return;
+					}
+					settled = true;
+					cleanup();
+					resolve(value);
+				};
+				const handleClose = () => {
+					finish(null);
+				};
+				const handleSigint = () => {
+					rl.close();
+					finish(null);
+				};
+
+				rl.once("close", handleClose);
+				rl.once("SIGINT", handleSigint);
+				rl.question(prompt, (answer) => {
+					finish(answer);
+				});
+			});
+		},
+	};
 }
 
 export function createCliRuntime(): CliRuntime {
@@ -16,6 +61,7 @@ export function createCliRuntime(): CliRuntime {
 	return {
 		argv: process.argv.slice(2),
 		commandExists: defaultCommandExists,
+		createLineReader: createDefaultLineReader,
 		cwd() {
 			return process.cwd();
 		},
@@ -28,6 +74,12 @@ export function createCliRuntime(): CliRuntime {
 			}
 		},
 		loadConfig,
+		onSignal(signal: NodeJS.Signals, handler: () => void) {
+			process.on(signal, handler);
+			return () => {
+				process.off(signal, handler);
+			};
+		},
 		readStdin() {
 			return new Promise((resolve, reject) => {
 				let data = "";

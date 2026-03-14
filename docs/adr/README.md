@@ -60,6 +60,7 @@ All ADRs in this directory are currently `Accepted` unless the file states other
 - [ADR-050: Bounded retrieval planning](./050-bounded-retrieval-planning.md)
 - [ADR-051: Typed relational event storage](./051-typed-relational-event-storage.md)
 - [ADR-052: Shared activity context on events](./052-activity-context.md)
+- [ADR-053: CLI chat session model](./053-cli-chat-session-model.md)
 
 ## Template
 

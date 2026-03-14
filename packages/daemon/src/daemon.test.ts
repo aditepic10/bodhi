@@ -165,7 +165,7 @@ describe("daemon orchestration workflows", () => {
 		expect(existsSync(spoolPath)).toBe(false);
 	});
 
-	test("startup prunes conversations beyond the configured max session count", async () => {
+	test("startup prunes chat sessions beyond the configured max session count", async () => {
 		const dataDir = makeTempDir();
 		const config = BodhiConfigSchema.parse({
 			config_dir: dataDir,

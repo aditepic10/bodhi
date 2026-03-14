@@ -2,9 +2,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { BodhiEvent } from "@bodhi/types";
 
+import { deriveActivityContext } from "../../activity-context";
 import type { AssistantCaptureAdapter } from "./adapters";
 import { assistantCaptureCommand } from "./command";
-import { deriveActivityContext, globalClaudeSettingsPath, stableEventId } from "./helpers";
+import { globalClaudeSettingsPath, stableEventId } from "./helpers";
 import { type ClaudeHookPayload, ClaudeHookPayloadSchema } from "./types";
 
 const CLAUDE_TOOL = "claude-code";

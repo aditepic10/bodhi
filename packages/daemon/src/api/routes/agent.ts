@@ -7,6 +7,7 @@ import { jsonError, parseJsonBody } from "../context";
 import { createSseWriter } from "./sse";
 
 const AgentRequestSchema = z.object({
+	cwd: z.string().min(1).optional(),
 	message: z.string().min(1),
 	session_id: z.string().min(1).optional(),
 });
@@ -36,6 +37,7 @@ export function registerAgentRoute(app: Hono, api: ApiContext): void {
 				store: api.store,
 			});
 			const { result, sessionId } = await loop.stream({
+				cwd: parsed.data.cwd,
 				message: parsed.data.message,
 				sessionId: parsed.data.session_id,
 			});

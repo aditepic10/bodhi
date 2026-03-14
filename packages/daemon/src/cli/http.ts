@@ -3,7 +3,13 @@ import { request as httpRequest } from "node:http";
 import { join } from "node:path";
 import type { BodhiConfig } from "@bodhi/types";
 
-import type { JsonObject, JsonResponse, JsonValue, RequestOptions } from "./types";
+import type {
+	JsonObject,
+	JsonResponse,
+	JsonValue,
+	RequestOptions,
+	SseRequestOptions,
+} from "./types";
 
 function readAuthToken(config: BodhiConfig): string | null {
 	const path = join(config.config_dir, "auth-token");
@@ -123,6 +129,7 @@ export async function requestSse(
 	path: string,
 	body: JsonObject,
 	onEvent: (payload: JsonObject) => void,
+	options: SseRequestOptions = {},
 ): Promise<void> {
 	const payload = JSON.stringify(body);
 	const headers: Record<string, string> = {
@@ -234,6 +241,13 @@ export async function requestSse(
 		request.on("error", (error) => {
 			finishReject(normalizeRequestError(config, error, "connecting to"));
 		});
+		options.signal?.addEventListener(
+			"abort",
+			() => {
+				request.destroy(new Error("request aborted"));
+			},
+			{ once: true },
+		);
 		request.write(payload);
 		request.end();
 	});

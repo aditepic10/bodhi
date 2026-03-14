@@ -76,9 +76,9 @@ export async function startDaemon(options: StartDaemonOptions = {}): Promise<Run
 	});
 
 	await intel.start();
-	const prunedSessions = await context.store.pruneConversations(config.conversations.max_sessions);
+	const prunedSessions = await context.store.pruneChatSessions(config.conversations.max_sessions);
 	if (prunedSessions > 0) {
-		context.log.info("pruned old conversations", { count: prunedSessions });
+		context.log.info("pruned old chat sessions", { count: prunedSessions });
 	}
 
 	const drainedAtStartup = await drainSpool(

@@ -2,9 +2,10 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { dirname, join } from "node:path";
 import type { BodhiEvent } from "@bodhi/types";
 
+import { deriveActivityContext } from "../../activity-context";
 import type { AssistantCaptureAdapter } from "./adapters";
 import { assistantCaptureArgv } from "./command";
-import { deriveActivityContext, globalOpenCodePluginPath, stableEventId } from "./helpers";
+import { globalOpenCodePluginPath, stableEventId } from "./helpers";
 import { OpenCodeCapturePayloadSchema } from "./types";
 
 const OPENCODE_TOOL = "opencode";
