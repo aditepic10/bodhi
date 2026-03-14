@@ -4,12 +4,12 @@ import { BodhiConfigSchema } from "@bodhi/types";
 
 import { type BusEventMap, createEventBus, type EventBus } from "./bus";
 import { createLogger } from "./logger";
+import { createPipeline, type Pipeline } from "./pipeline/pipeline";
 import {
 	applyPragmas,
 	createStore,
 	ensureCoreSchema,
 	openDatabase,
-	type PipelineLike,
 	type SqliteStore,
 	setupFts,
 } from "./store/sqlite";
@@ -17,7 +17,7 @@ import {
 export interface TestContext {
 	config: BodhiConfig;
 	store: SqliteStore;
-	pipeline: PipelineLike;
+	pipeline: Pipeline;
 	bus: EventBus;
 }
 
@@ -32,12 +32,13 @@ export function createTestStore(config?: Partial<BodhiConfig>): SqliteStore {
 	});
 }
 
-export function createTestPipeline(_config?: Partial<PipelineConfig>): PipelineLike {
-	return {
-		process(event) {
-			return event;
+export function createTestPipeline(config?: Partial<PipelineConfig>): Pipeline {
+	return createPipeline({
+		config,
+		enrich: {
+			machineId: "test-machine",
 		},
-	};
+	});
 }
 
 export function createTestBus(): EventBus {
