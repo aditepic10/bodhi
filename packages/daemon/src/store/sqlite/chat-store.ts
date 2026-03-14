@@ -5,6 +5,8 @@ import {
 	ChatSessionSchema,
 	type ConversationMessage,
 	ConversationRoleSchema,
+	ConversationStatusSchema,
+	ConversationTurnSchema,
 } from "@bodhi/types";
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sqlite";
@@ -95,29 +97,37 @@ export function createChatStore(db: Database): ChatStoreMethods {
 
 	return {
 		async appendMessage(
-			role: "user" | "assistant" | "system",
+			role: "user" | "assistant" | "system" | "tool",
 			content: string,
 			session_id: string,
+			options: {
+				content_json?: string;
+				status?: "complete" | "streaming" | "error" | "interrupted";
+			} = {},
 		) {
 			const session = ensureSessionRow(session_id);
 			const id = nanoid();
 			const timestamp = nowUnix();
+			const parsedRole = ConversationRoleSchema.parse(role);
+			const status = ConversationStatusSchema.parse(options.status ?? "complete");
 
 			orm
 				.insert(conversationsTable)
 				.values({
 					content,
+					content_json: options.content_json ?? null,
 					created_at: timestamp,
 					id,
-					role,
+					role: parsedRole,
 					session_id,
+					status,
 				})
 				.run();
 
 			const updates: Partial<typeof chatSessionsTable.$inferInsert> = {
 				updated_at: timestamp,
 			};
-			if (role === "user") {
+			if (parsedRole === "user") {
 				const preview = normalizeSnippet(content, SESSION_PREVIEW_MAX);
 				updates.last_user_message_preview = preview;
 				if (!session.title) {
@@ -225,16 +235,22 @@ export function createChatStore(db: Database): ChatStoreMethods {
 			return orm
 				.select({
 					content: conversationsTable.content,
+					content_json: conversationsTable.content_json,
 					role: conversationsTable.role,
+					status: conversationsTable.status,
 				})
 				.from(conversationsTable)
 				.where(eq(conversationsTable.session_id, session_id))
 				.orderBy(asc(conversationsTable.created_at), asc(conversationsTable._rowid))
 				.all()
-				.map((row) => ({
-					content: row.content,
-					role: ConversationRoleSchema.parse(row.role),
-				}));
+				.map((row) =>
+					ConversationTurnSchema.parse({
+						content: row.content,
+						content_json: row.content_json ?? undefined,
+						role: ConversationRoleSchema.parse(row.role),
+						status: ConversationStatusSchema.parse(row.status),
+					}),
+				);
 		},
 		async pruneChatSessions(maxSessions: number) {
 			if (maxSessions <= 0) {

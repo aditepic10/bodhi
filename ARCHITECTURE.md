@@ -83,6 +83,15 @@ Retrieval builds on top of this storage shape in stages:
 
 This keeps retrieval explainable and extensible as capture sources grow.
 
+Persistent chat builds on the same store in a separate contract:
+
+- `chat_sessions` stores session metadata and resume/listing state
+- `conversations` stores ordered chat history
+- `conversations` now carries `role`, `status`, and structured `content_json`
+- the structured content bridge preserves assistant and tool message fidelity without forcing a full UI-message storage redesign yet
+
+This keeps the TUI foundation inside the existing relational model instead of introducing a second chat state system.
+
 ## Module Contracts
 
 - Capture sources produce typed events.
@@ -91,6 +100,13 @@ This keeps retrieval explainable and extensible as capture sources grow.
 - Bus owns cross-module signaling.
 - API owns trust boundaries and transport concerns.
 - Daemon orchestration wires pipeline, store, bus, API, and intel together.
+
+Chat and recall are now separate daemon contracts:
+
+- `/agent` is ephemeral recall
+- `/chat` is history-aware persistent conversation
+- both share provider resolution, retrieval, tools, and streaming infrastructure
+- only `/chat` is allowed to mutate chat session state
 
 ## Extension Seams
 

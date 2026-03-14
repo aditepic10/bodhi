@@ -70,7 +70,7 @@ describe("sqlite integrity boundaries", () => {
 		await expect(store.updateFact("fact-invalid-status", { value: "nvim" })).rejects.toThrow();
 	});
 
-	test("invalid conversation role in stored row fails loudly on read", async () => {
+	test("invalid conversation role is rejected at the sqlite boundary", async () => {
 		store.db
 			.query(
 				`
@@ -79,16 +79,37 @@ describe("sqlite integrity boundaries", () => {
 				`,
 			)
 			.run("session-1", 1_710_430_700, 1_710_430_700);
+		expect(() =>
+			store.db
+				.query(
+					`
+						INSERT INTO conversations (id, role, content, session_id, created_at)
+						VALUES (?, ?, ?, ?, ?)
+					`,
+				)
+				.run("conv-invalid-role", "narrator", "hello", "session-1", 1_710_430_700),
+		).toThrow();
+	});
+
+	test("invalid conversation status is rejected at the sqlite boundary", async () => {
 		store.db
 			.query(
 				`
-					INSERT INTO conversations (id, role, content, session_id, created_at)
-					VALUES (?, ?, ?, ?, ?)
+					INSERT INTO chat_sessions (session_id, created_at, updated_at)
+					VALUES (?, ?, ?)
 				`,
 			)
-			.run("conv-invalid-role", "narrator", "hello", "session-1", 1_710_430_700);
-
-		await expect(store.getConversation("session-1")).rejects.toThrow();
+			.run("session-2", 1_710_430_701, 1_710_430_701);
+		expect(() =>
+			store.db
+				.query(
+					`
+						INSERT INTO conversations (id, role, status, content, session_id, created_at)
+						VALUES (?, ?, ?, ?, ?, ?)
+					`,
+				)
+				.run("conv-invalid-status", "assistant", "mystery", "hello", "session-2", 1_710_430_701),
+		).toThrow();
 	});
 
 	test("missing payload row fails loudly when hydrating an envelope", async () => {

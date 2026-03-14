@@ -9,6 +9,7 @@ import type { PipelineLike, SqliteStore } from "../store/sqlite";
 import type { ApiContext, ApiContextOverrides } from "./context";
 import { createApiContext, jsonError, MAX_JSON_BYTES } from "./context";
 import { registerAgentRoute } from "./routes/agent";
+import { registerChatRoute } from "./routes/chat";
 import { registerChatSessionsRoute } from "./routes/chat-sessions";
 import { registerFactsRoute } from "./routes/facts";
 import { registerHealthRoute } from "./routes/health";
@@ -154,6 +155,13 @@ export function createApiApp(
 	});
 
 	app.use(
+		"/chat",
+		createRateLimitMiddleware("RATE_LIMITED", [
+			{ limit: api.config.rate_limits.agent_per_minute, windowMs: 60_000 },
+			{ limit: api.config.rate_limits.agent_per_hour, windowMs: 60 * 60_000 },
+		]),
+	);
+	app.use(
 		"/agent",
 		createRateLimitMiddleware("RATE_LIMITED", [
 			{ limit: api.config.rate_limits.agent_per_minute, windowMs: 60_000 },
@@ -178,6 +186,7 @@ export function createApiApp(
 	registerFactsRoute(app, api);
 	registerQueryRoute(app, api);
 	registerChatSessionsRoute(app, api);
+	registerChatRoute(app, api);
 	registerAgentRoute(app, api);
 	registerStreamRoute(app, api);
 

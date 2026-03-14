@@ -386,7 +386,6 @@ describe("api server workflows", () => {
 			body: JSON.stringify({
 				cwd: "/work/bodhi",
 				message: "What commands have I run recently?",
-				session_id: "agent-session-1",
 			}),
 			headers: {
 				"content-type": "application/json",
@@ -400,16 +399,63 @@ describe("api server workflows", () => {
 		expect(body).toContain('"type":"text-delta"');
 		expect(body).toContain("Based on memory, you recently ran git status.");
 		expect(body).toContain('"type":"finish"');
-		expect(body).toContain('"session_id":"agent-session-1"');
-		expect((await store.getConversation("agent-session-1")).map((entry) => entry.role)).toEqual([
+		expect(await store.listChatSessions()).toHaveLength(0);
+	});
+
+	test("chat route streams UI message chunks and stores session history", async () => {
+		stubLLMResponse("4");
+		const { app, store } = createApiFixture();
+
+		await store.upsertChatSession({
+			cwd: "/work/bodhi",
+			session_id: "chat-session-1",
+		});
+		const response = await app.request("http://localhost/chat", {
+			body: JSON.stringify({
+				cwd: "/work/bodhi",
+				message: "what is 2+2?",
+				session_id: "chat-session-1",
+			}),
+			headers: {
+				"content-type": "application/json",
+			},
+			method: "POST",
+		});
+		const body = await response.text();
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-type")).toContain("text/event-stream");
+		expect(body).toContain('"type":"start"');
+		expect(body).toContain('"type":"text-delta"');
+		expect(body).toContain('"delta":"4"');
+		expect(body).toContain('"type":"finish"');
+		expect((await store.getConversation("chat-session-1")).map((entry) => entry.role)).toEqual([
 			"user",
 			"assistant",
 		]);
-		expect(await store.getChatSession("agent-session-1")).toMatchObject({
-			cwd: "/work/bodhi",
-			session_id: "agent-session-1",
-			title: "What commands have I run recently?",
+		expect((await store.getConversation("chat-session-1"))[1]?.content_json).toContain('"text"');
+	});
+
+	test("chat route rejects unknown session ids instead of creating them implicitly", async () => {
+		stubLLMResponse("4");
+		const { app, store } = createApiFixture();
+
+		const response = await app.request("http://localhost/chat", {
+			body: JSON.stringify({
+				cwd: "/work/bodhi",
+				message: "what is 2+2?",
+				session_id: "missing-session",
+			}),
+			headers: {
+				"content-type": "application/json",
+			},
+			method: "POST",
 		});
+		const body = (await response.json()) as { code: string; error: string };
+
+		expect(response.status).toBe(404);
+		expect(body.code).toBe("SESSION_NOT_FOUND");
+		expect(await store.getChatSession("missing-session")).toBeNull();
 	});
 
 	test("chat session routes create, fetch, and list sessions", async () => {

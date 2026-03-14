@@ -110,7 +110,7 @@ export async function runInteractiveChat(
 			try {
 				await runtime.requestSse(
 					config,
-					"/agent",
+					"/chat",
 					{
 						cwd: runtime.cwd(),
 						message,
@@ -120,10 +120,10 @@ export async function runInteractiveChat(
 						switch (payload.type) {
 							case "text-delta":
 								wroteText = true;
-								runtime.stdout.write(String(payload.text ?? ""));
+								runtime.stdout.write(String(payload.delta ?? ""));
 								break;
 							case "error":
-								throw new Error(String(payload.error ?? "agent request failed"));
+								throw new Error(String(payload.errorText ?? "chat request failed"));
 							default:
 								break;
 						}

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { BodhiConfigSchema } from "@bodhi/types";
 
-import { normalizeRequestError } from "./http";
+import { normalizeRequestError, parseSseDataLine } from "./http";
 
 function makeUnixConfig() {
 	return BodhiConfigSchema.parse({
@@ -42,5 +42,14 @@ describe("cli http transport", () => {
 		expect(normalized.message).toBe(
 			`connection to Bodhi daemon was interrupted while streaming from unix:${config.socket_path}`,
 		);
+	});
+
+	test("parses AI SDK done sentinels without treating them as JSON", () => {
+		expect(parseSseDataLine("event: message")).toBeNull();
+		expect(parseSseDataLine("data: [DONE]")).toBe("[DONE]");
+		expect(parseSseDataLine('data: {"type":"text-delta","delta":"hi"}')).toEqual({
+			delta: "hi",
+			type: "text-delta",
+		});
 	});
 });

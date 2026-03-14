@@ -61,6 +61,7 @@ All ADRs in this directory are currently `Accepted` unless the file states other
 - [ADR-051: Typed relational event storage](./051-typed-relational-event-storage.md)
 - [ADR-052: Shared activity context on events](./052-activity-context.md)
 - [ADR-053: CLI chat session model](./053-cli-chat-session-model.md)
+- [ADR-054: Recall and chat are separate runtime contracts](./054-recall-chat-substrate-split.md)
 
 ## Template
 

@@ -26,6 +26,19 @@ function endpointLabel(config: BodhiConfig): string {
 		: `http://${config.host}:${config.port}`;
 }
 
+export function parseSseDataLine(line: string): JsonObject | "[DONE]" | null {
+	if (!line.startsWith("data: ")) {
+		return null;
+	}
+
+	const raw = line.slice(6).trim();
+	if (raw === "[DONE]") {
+		return "[DONE]";
+	}
+
+	return JSON.parse(raw) as JsonObject;
+}
+
 export function normalizeRequestError(
 	config: BodhiConfig,
 	error: unknown,
@@ -196,12 +209,15 @@ export async function requestSse(
 						const frame = buffer.slice(0, boundary);
 						buffer = buffer.slice(boundary + 2);
 						for (const line of frame.split("\n")) {
-							if (!line.startsWith("data: ")) {
-								continue;
-							}
-
 							try {
-								const payload = JSON.parse(line.slice(6)) as JsonObject;
+								const payload = parseSseDataLine(line);
+								if (payload === null) {
+									continue;
+								}
+								if (payload === "[DONE]") {
+									sawFinish = true;
+									continue;
+								}
 								if (payload.type === "finish") {
 									sawFinish = true;
 								}

@@ -1,0 +1,1418 @@
+{
+  "version": "6",
+  "dialect": "sqlite",
+  "id": "e4d2abec-f899-4cc0-8b22-11a5de145edc",
+  "prevId": "a1baf495-3a83-4746-a3ad-056efe49cf16",
+  "tables": {
+    "ai_prompt_events": {
+      "name": "ai_prompt_events",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ai_prompt_events_event_id_unique": {
+          "name": "ai_prompt_events_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_ai_prompt_events_event_id": {
+          "name": "idx_ai_prompt_events_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "ai_prompt_events_event_id_events_id_fk": {
+          "name": "ai_prompt_events_event_id_events_id_fk",
+          "tableFrom": "ai_prompt_events",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "ai_tool_call_events": {
+      "name": "ai_tool_call_events",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "tool_name": {
+          "name": "tool_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "target": {
+          "name": "target",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "ai_tool_call_events_event_id_unique": {
+          "name": "ai_tool_call_events_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_ai_tool_call_events_event_id": {
+          "name": "idx_ai_tool_call_events_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_ai_tool_call_events_tool_name": {
+          "name": "idx_ai_tool_call_events_tool_name",
+          "columns": ["tool_name"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "ai_tool_call_events_event_id_events_id_fk": {
+          "name": "ai_tool_call_events_event_id_events_id_fk",
+          "tableFrom": "ai_tool_call_events",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "chat_sessions": {
+      "name": "chat_sessions",
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "repo_id": {
+          "name": "repo_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "worktree_root": {
+          "name": "worktree_root",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cwd": {
+          "name": "cwd",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "branch": {
+          "name": "branch",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_user_message_preview": {
+          "name": "last_user_message_preview",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_chat_sessions_updated_at": {
+          "name": "idx_chat_sessions_updated_at",
+          "columns": ["updated_at"],
+          "isUnique": false
+        },
+        "idx_chat_sessions_repo_id": {
+          "name": "idx_chat_sessions_repo_id",
+          "columns": ["repo_id"],
+          "isUnique": false
+        },
+        "idx_chat_sessions_worktree_root": {
+          "name": "idx_chat_sessions_worktree_root",
+          "columns": ["worktree_root"],
+          "isUnique": false
+        },
+        "idx_chat_sessions_cwd": {
+          "name": "idx_chat_sessions_cwd",
+          "columns": ["cwd"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "conversations": {
+      "name": "conversations",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'complete'"
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content_json": {
+          "name": "content_json",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        }
+      },
+      "indexes": {
+        "conversations_id_unique": {
+          "name": "conversations_id_unique",
+          "columns": ["id"],
+          "isUnique": true
+        },
+        "idx_conversations_session": {
+          "name": "idx_conversations_session",
+          "columns": ["session_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "conversations_session_id_chat_sessions_session_id_fk": {
+          "name": "conversations_session_id_chat_sessions_session_id_fk",
+          "tableFrom": "conversations",
+          "tableTo": "chat_sessions",
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["session_id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "conversations_role_valid": {
+          "name": "conversations_role_valid",
+          "value": "role in ('user', 'assistant', 'system', 'tool')"
+        },
+        "conversations_status_valid": {
+          "name": "conversations_status_valid",
+          "value": "status in ('complete', 'streaming', 'error', 'interrupted')"
+        }
+      }
+    },
+    "event_contexts": {
+      "name": "event_contexts",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "repo_id": {
+          "name": "repo_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "worktree_root": {
+          "name": "worktree_root",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "branch": {
+          "name": "branch",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "head_sha": {
+          "name": "head_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "git_state": {
+          "name": "git_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cwd": {
+          "name": "cwd",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "relative_cwd": {
+          "name": "relative_cwd",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "terminal_session": {
+          "name": "terminal_session",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "tool": {
+          "name": "tool",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "thread_id": {
+          "name": "thread_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "event_contexts_event_id_unique": {
+          "name": "event_contexts_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_event_contexts_event_id": {
+          "name": "idx_event_contexts_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_event_contexts_repo_id": {
+          "name": "idx_event_contexts_repo_id",
+          "columns": ["repo_id"],
+          "isUnique": false
+        },
+        "idx_event_contexts_branch": {
+          "name": "idx_event_contexts_branch",
+          "columns": ["branch"],
+          "isUnique": false
+        },
+        "idx_event_contexts_repo_branch": {
+          "name": "idx_event_contexts_repo_branch",
+          "columns": ["repo_id", "branch"],
+          "isUnique": false
+        },
+        "idx_event_contexts_tool": {
+          "name": "idx_event_contexts_tool",
+          "columns": ["tool"],
+          "isUnique": false
+        },
+        "idx_event_contexts_thread_id": {
+          "name": "idx_event_contexts_thread_id",
+          "columns": ["thread_id"],
+          "isUnique": false
+        },
+        "idx_event_contexts_cwd": {
+          "name": "idx_event_contexts_cwd",
+          "columns": ["cwd"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "event_contexts_event_id_events_id_fk": {
+          "name": "event_contexts_event_id_events_id_fk",
+          "tableFrom": "event_contexts",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "events": {
+      "name": "events",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "machine_id": {
+          "name": "machine_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "search_text": {
+          "name": "search_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "producer_version": {
+          "name": "producer_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "processed_at": {
+          "name": "processed_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "events_id_unique": {
+          "name": "events_id_unique",
+          "columns": ["id"],
+          "isUnique": true
+        },
+        "events_event_id_unique": {
+          "name": "events_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_events_type": {
+          "name": "idx_events_type",
+          "columns": ["type"],
+          "isUnique": false
+        },
+        "idx_events_created": {
+          "name": "idx_events_created",
+          "columns": ["created_at"],
+          "isUnique": false
+        },
+        "idx_events_source": {
+          "name": "idx_events_source",
+          "columns": ["source"],
+          "isUnique": false
+        },
+        "idx_events_type_created": {
+          "name": "idx_events_type_created",
+          "columns": ["type", "created_at"],
+          "isUnique": false
+        },
+        "idx_events_event_id": {
+          "name": "idx_events_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "fact_links": {
+      "name": "fact_links",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fact_id_from": {
+          "name": "fact_id_from",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fact_id_to": {
+          "name": "fact_id_to",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "relationship_type": {
+          "name": "relationship_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        }
+      },
+      "indexes": {
+        "fact_links_id_unique": {
+          "name": "fact_links_id_unique",
+          "columns": ["id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "fact_links_fact_id_from_facts_id_fk": {
+          "name": "fact_links_fact_id_from_facts_id_fk",
+          "tableFrom": "fact_links",
+          "tableTo": "facts",
+          "columnsFrom": ["fact_id_from"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "fact_links_fact_id_to_facts_id_fk": {
+          "name": "fact_links_fact_id_to_facts_id_fk",
+          "tableFrom": "fact_links",
+          "tableTo": "facts",
+          "columnsFrom": ["fact_id_to"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "facts": {
+      "name": "facts",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source_event_id": {
+          "name": "source_event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'active'"
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "schema_version": {
+          "name": "schema_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "supersedes_fact_id": {
+          "name": "supersedes_fact_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "extraction_meta": {
+          "name": "extraction_meta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "valid_from": {
+          "name": "valid_from",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "valid_to": {
+          "name": "valid_to",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        }
+      },
+      "indexes": {
+        "facts_id_unique": {
+          "name": "facts_id_unique",
+          "columns": ["id"],
+          "isUnique": true
+        },
+        "idx_facts_key": {
+          "name": "idx_facts_key",
+          "columns": ["key"],
+          "isUnique": false
+        },
+        "idx_facts_status": {
+          "name": "idx_facts_status",
+          "columns": ["status"],
+          "isUnique": false
+        },
+        "idx_facts_source_event": {
+          "name": "idx_facts_source_event",
+          "columns": ["source_event_id"],
+          "isUnique": false
+        },
+        "idx_facts_active": {
+          "name": "idx_facts_active",
+          "columns": ["key", "status", "valid_to"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "facts_source_event_id_events_id_fk": {
+          "name": "facts_source_event_id_events_id_fk",
+          "tableFrom": "facts",
+          "tableTo": "events",
+          "columnsFrom": ["source_event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "git_checkout_events": {
+      "name": "git_checkout_events",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "from_branch": {
+          "name": "from_branch",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "to_branch": {
+          "name": "to_branch",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "from_sha": {
+          "name": "from_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "to_sha": {
+          "name": "to_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "checkout_kind": {
+          "name": "checkout_kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "git_checkout_events_event_id_unique": {
+          "name": "git_checkout_events_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_git_checkout_events_event_id": {
+          "name": "idx_git_checkout_events_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "git_checkout_events_event_id_events_id_fk": {
+          "name": "git_checkout_events_event_id_events_id_fk",
+          "tableFrom": "git_checkout_events",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "git_commit_events": {
+      "name": "git_commit_events",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "hash": {
+          "name": "hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_count": {
+          "name": "parent_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "files_changed": {
+          "name": "files_changed",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "insertions": {
+          "name": "insertions",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deletions": {
+          "name": "deletions",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "git_commit_events_event_id_unique": {
+          "name": "git_commit_events_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_git_commit_events_event_id": {
+          "name": "idx_git_commit_events_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_git_commit_events_hash": {
+          "name": "idx_git_commit_events_hash",
+          "columns": ["hash"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "git_commit_events_event_id_events_id_fk": {
+          "name": "git_commit_events_event_id_events_id_fk",
+          "tableFrom": "git_commit_events",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "git_commit_files": {
+      "name": "git_commit_files",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "path": {
+          "name": "path",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "git_commit_files_id_unique": {
+          "name": "git_commit_files_id_unique",
+          "columns": ["id"],
+          "isUnique": true
+        },
+        "idx_git_commit_files_id": {
+          "name": "idx_git_commit_files_id",
+          "columns": ["id"],
+          "isUnique": true
+        },
+        "idx_git_commit_files_event_id": {
+          "name": "idx_git_commit_files_event_id",
+          "columns": ["event_id"],
+          "isUnique": false
+        },
+        "idx_git_commit_files_path": {
+          "name": "idx_git_commit_files_path",
+          "columns": ["path"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "git_commit_files_event_id_events_id_fk": {
+          "name": "git_commit_files_event_id_events_id_fk",
+          "tableFrom": "git_commit_files",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "git_merge_events": {
+      "name": "git_merge_events",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "merge_commit_sha": {
+          "name": "merge_commit_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "parent_count": {
+          "name": "parent_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "is_squash": {
+          "name": "is_squash",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        }
+      },
+      "indexes": {
+        "git_merge_events_event_id_unique": {
+          "name": "git_merge_events_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_git_merge_events_event_id": {
+          "name": "idx_git_merge_events_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "git_merge_events_event_id_events_id_fk": {
+          "name": "git_merge_events_event_id_events_id_fk",
+          "tableFrom": "git_merge_events",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "git_rewrite_events": {
+      "name": "git_rewrite_events",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rewrite_type": {
+          "name": "rewrite_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rewritten_commit_count": {
+          "name": "rewritten_commit_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        }
+      },
+      "indexes": {
+        "git_rewrite_events_event_id_unique": {
+          "name": "git_rewrite_events_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_git_rewrite_events_event_id": {
+          "name": "idx_git_rewrite_events_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "git_rewrite_events_event_id_events_id_fk": {
+          "name": "git_rewrite_events_event_id_events_id_fk",
+          "tableFrom": "git_rewrite_events",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "git_rewrite_mappings": {
+      "name": "git_rewrite_mappings",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "old_commit_sha": {
+          "name": "old_commit_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "new_commit_sha": {
+          "name": "new_commit_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "git_rewrite_mappings_id_unique": {
+          "name": "git_rewrite_mappings_id_unique",
+          "columns": ["id"],
+          "isUnique": true
+        },
+        "idx_git_rewrite_mappings_id": {
+          "name": "idx_git_rewrite_mappings_id",
+          "columns": ["id"],
+          "isUnique": true
+        },
+        "idx_git_rewrite_mappings_event_id": {
+          "name": "idx_git_rewrite_mappings_event_id",
+          "columns": ["event_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "git_rewrite_mappings_event_id_events_id_fk": {
+          "name": "git_rewrite_mappings_event_id_events_id_fk",
+          "tableFrom": "git_rewrite_mappings",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "note_events": {
+      "name": "note_events",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "content": {
+          "name": "content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "note_events_event_id_unique": {
+          "name": "note_events_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_note_events_event_id": {
+          "name": "idx_note_events_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "note_events_event_id_events_id_fk": {
+          "name": "note_events_event_id_events_id_fk",
+          "tableFrom": "note_events",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "shell_command_events": {
+      "name": "shell_command_events",
+      "columns": {
+        "_rowid": {
+          "name": "_rowid",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "event_id": {
+          "name": "event_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "command": {
+          "name": "command",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "exit_code": {
+          "name": "exit_code",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "shell_command_events_event_id_unique": {
+          "name": "shell_command_events_event_id_unique",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_shell_command_events_event_id": {
+          "name": "idx_shell_command_events_event_id",
+          "columns": ["event_id"],
+          "isUnique": true
+        },
+        "idx_shell_command_events_exit_code": {
+          "name": "idx_shell_command_events_exit_code",
+          "columns": ["exit_code"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "shell_command_events_event_id_events_id_fk": {
+          "name": "shell_command_events_event_id_events_id_fk",
+          "tableFrom": "shell_command_events",
+          "tableTo": "events",
+          "columnsFrom": ["event_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    }
+  },
+  "views": {},
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "indexes": {}
+  }
+}

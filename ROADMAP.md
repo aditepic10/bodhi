@@ -16,6 +16,8 @@ Week 1 MVP is complete:
 - daemon orchestration
 - shell hook scaffolding
 - CLI entrypoint
+- persistent CLI chat groundwork
+- history-aware chat substrate split between recall and chat
 
 ### Immediate Follow-Up
 
@@ -111,7 +113,6 @@ Chat substrate:
 First workflows and clients:
 - `bodhi standup`
 - `bodhi resume [branch]`
-- `bodhi chat`
 - TUI once the chat substrate and retrieval feel trustworthy
 - facts review workflow
 - export path

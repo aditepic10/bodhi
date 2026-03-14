@@ -2,6 +2,7 @@ import type {
 	ChatSession,
 	ChatSessionListEntry,
 	ConversationMessage,
+	ConversationStatus,
 	Fact,
 	FactCreatedBy,
 	FactStatus,
@@ -60,9 +61,13 @@ export interface Store {
 	invalidateFact(id: string): Promise<void>;
 
 	appendMessage(
-		role: "user" | "assistant" | "system",
+		role: "user" | "assistant" | "system" | "tool",
 		content: string,
 		session_id: string,
+		options?: {
+			content_json?: string;
+			status?: ConversationStatus;
+		},
 	): Promise<string>;
 	upsertChatSession(session: ChatSessionSeed): Promise<ChatSession>;
 	getChatSession(session_id: string): Promise<ChatSession | null>;

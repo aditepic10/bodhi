@@ -9,7 +9,6 @@ import { createSseWriter } from "./sse";
 const AgentRequestSchema = z.object({
 	cwd: z.string().min(1).optional(),
 	message: z.string().min(1),
-	session_id: z.string().min(1).optional(),
 });
 
 const encoder = new TextEncoder();
@@ -36,10 +35,9 @@ export function registerAgentRoute(app: Hono, api: ApiContext): void {
 				pipeline: api.pipeline,
 				store: api.store,
 			});
-			const { result, sessionId } = await loop.stream({
+			const { result } = await loop.stream({
 				cwd: parsed.data.cwd,
 				message: parsed.data.message,
-				sessionId: parsed.data.session_id,
 			});
 
 			const stream = new ReadableStream<Uint8Array>({
@@ -63,7 +61,6 @@ export function registerAgentRoute(app: Hono, api: ApiContext): void {
 
 							writer.enqueue(
 								encodeEvent({
-									session_id: sessionId,
 									type: "finish",
 								}),
 							);

@@ -142,18 +142,12 @@ describe("agent workflows", () => {
 			pipeline: context.pipeline,
 			store: context.store,
 		});
-		const { result } = await loop.stream({
-			message: "What editor do I use?",
-			sessionId: "session-1",
-		});
+		const { result } = await loop.stream({ message: "What editor do I use?" });
 
 		expect(await result.text).toBe("Use neovim.");
 		expect(capturedPrompt).toContain("[UNTRUSTED DATA START]");
 		expect(capturedPrompt).toContain("preferred_editor: neovim");
 		expect(capturedPrompt).not.toContain("draft_secret");
-		expect(
-			(await context.store.getConversation("session-1")).map((entry) => entry.content),
-		).toEqual(["What editor do I use?", "Use neovim."]);
 	});
 
 	test("tool loop can store an agent fact and finish with text", async () => {
@@ -203,10 +197,7 @@ describe("agent workflows", () => {
 			pipeline: context.pipeline,
 			store: context.store,
 		});
-		const { result } = await loop.stream({
-			message: "Remember that I use zsh.",
-			sessionId: "session-2",
-		});
+		const { result } = await loop.stream({ message: "Remember that I use zsh." });
 
 		expect(await result.text).toContain("preferred shell is zsh");
 		const facts = await context.store.getFacts({ key: "preferred_shell", status: "active" });
@@ -262,10 +253,7 @@ describe("agent workflows", () => {
 			pipeline: context.pipeline,
 			store: context.store,
 		});
-		const { result } = await loop.stream({
-			message: "What commands have I run?",
-			sessionId: "session-recall-1",
-		});
+		const { result } = await loop.stream({ message: "What commands have I run?" });
 
 		expect(await result.text).toContain("git status");
 		expect(capturedPrompt).toContain("git status");
@@ -308,10 +296,7 @@ describe("agent workflows", () => {
 			pipeline: context.pipeline,
 			store: context.store,
 		});
-		const { result } = await loop.stream({
-			message: "Test max output tokens",
-			sessionId: "session-configured-max-output",
-		});
+		const { result } = await loop.stream({ message: "Test max output tokens" });
 
 		expect(await result.text).toBe("configured");
 		expect(capturedMaxOutputTokens).toBe(2048);
@@ -378,10 +363,7 @@ describe("agent workflows", () => {
 			pipeline: context.pipeline,
 			store: context.store,
 		});
-		const { result } = await loop.stream({
-			message: "What is my preferred editor?",
-			sessionId: "session-recall-2",
-		});
+		const { result } = await loop.stream({ message: "What is my preferred editor?" });
 
 		expect(await result.text).toContain("neovim");
 		expect(capturedPrompt).toContain("preferred_editor");

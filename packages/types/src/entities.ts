@@ -5,7 +5,8 @@ import { ActivityContextSchema, BodhiEventSchema } from "./events";
 export const EventSourceSchema = z.enum(["shell", "git", "manual", "api", "ai"]);
 export const FactCreatedBySchema = z.enum(["intel", "agent", "user", "api"]);
 export const FactStatusSchema = z.enum(["active", "pending", "rejected"]);
-export const ConversationRoleSchema = z.enum(["user", "assistant", "system"]);
+export const ConversationRoleSchema = z.enum(["user", "assistant", "system", "tool"]);
+export const ConversationStatusSchema = z.enum(["complete", "streaming", "error", "interrupted"]);
 
 export const StoredEventSchema = z.intersection(
 	BodhiEventSchema,
@@ -49,16 +50,35 @@ export const FactLinkSchema = z.object({
 	created_at: z.number().int(),
 });
 
-export const ConversationTurnSchema = z.object({
-	role: ConversationRoleSchema,
+const ConversationTurnBaseSchema = z.object({
 	content: z.string(),
+	content_json: z.string().optional(),
+	status: ConversationStatusSchema,
 });
 
-export const ConversationEntrySchema = ConversationTurnSchema.extend({
-	id: z.string(),
-	session_id: z.string(),
-	created_at: z.number().int(),
-});
+export const ConversationTurnSchema = z.discriminatedUnion("role", [
+	ConversationTurnBaseSchema.extend({
+		role: z.literal("user"),
+	}),
+	ConversationTurnBaseSchema.extend({
+		role: z.literal("assistant"),
+	}),
+	ConversationTurnBaseSchema.extend({
+		role: z.literal("system"),
+	}),
+	ConversationTurnBaseSchema.extend({
+		role: z.literal("tool"),
+	}),
+]);
+
+export const ConversationEntrySchema = z.intersection(
+	ConversationTurnSchema,
+	z.object({
+		id: z.string(),
+		session_id: z.string(),
+		created_at: z.number().int(),
+	}),
+);
 
 export const ChatSessionSchema = z.object({
 	session_id: z.string(),
@@ -80,6 +100,7 @@ export type EventSource = z.infer<typeof EventSourceSchema>;
 export type FactCreatedBy = z.infer<typeof FactCreatedBySchema>;
 export type FactStatus = z.infer<typeof FactStatusSchema>;
 export type ConversationRole = z.infer<typeof ConversationRoleSchema>;
+export type ConversationStatus = z.infer<typeof ConversationStatusSchema>;
 export type StoredEvent = z.infer<typeof StoredEventSchema>;
 export type Fact = z.infer<typeof FactSchema>;
 export type FactLink = z.infer<typeof FactLinkSchema>;

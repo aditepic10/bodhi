@@ -1,8 +1,6 @@
 import type { BodhiConfig, Store } from "@bodhi/types";
 import { type LanguageModel, type StreamTextResult, stepCountIs, streamText } from "ai";
-import { nanoid } from "nanoid";
 
-import { deriveWorkspaceContext } from "../activity-context";
 import type { EventBus } from "../bus";
 import { createRetrievalService, type RetrievalService } from "../retrieval/service";
 import type { PipelineLike } from "../store/sqlite";
@@ -29,12 +27,10 @@ export interface AgentLoopOptions {
 export interface AgentLoopRequest {
 	cwd?: string;
 	message: string;
-	sessionId?: string;
 }
 
 export interface AgentLoopResult {
 	result: StreamTextResult<ReturnType<typeof createAgentToolRegistry>, never>;
-	sessionId: string;
 }
 
 export function createAgentLoop(options: AgentLoopOptions) {
@@ -47,15 +43,6 @@ export function createAgentLoop(options: AgentLoopOptions) {
 				throw new NoLanguageModelConfiguredError();
 			}
 
-			const sessionId = request.sessionId ?? nanoid();
-			const workspace = deriveWorkspaceContext(request.cwd);
-			await options.store.upsertChatSession({
-				branch: workspace.branch,
-				cwd: workspace.cwd,
-				repo_id: workspace.repo_id,
-				session_id: sessionId,
-				worktree_root: workspace.worktree_root,
-			});
 			const context = await retrieval.retrieve(request.message);
 			const tools = createAgentToolRegistry({
 				bus: options.bus,
@@ -65,24 +52,16 @@ export function createAgentLoop(options: AgentLoopOptions) {
 				store: options.store,
 			});
 
-			await options.store.appendMessage("user", request.message, sessionId);
-
 			const result = streamText({
 				maxOutputTokens: options.config.agent.max_output_tokens,
 				model,
-				onFinish: async ({ text }) => {
-					await options.store.appendMessage("assistant", text, sessionId);
-				},
 				prompt: request.message,
 				stopWhen: stepCountIs(10),
 				system: buildSystemPrompt(context),
 				tools,
 			});
 
-			return {
-				result,
-				sessionId,
-			};
+			return { result };
 		},
 	};
 }

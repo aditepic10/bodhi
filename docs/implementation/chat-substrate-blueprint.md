@@ -103,7 +103,7 @@ Keep `conversations`, but add the minimum extra metadata needed for robust histo
 
 Minimum additions required now:
 
-- `message_kind`
+- `role`
   - `user`
   - `assistant`
   - `system`
@@ -118,6 +118,7 @@ Minimum additions required now:
   - tool invocation turns
   - tool results or outcomes
   - enough structured information for future TUI rendering and debugging
+- a structured `content_json` bridge for assistant and tool messages so the daemon can reconstruct exact model history from stored rows
 
 This keeps the migration path small while making the chat stream/UI contract more honest.
 
@@ -154,6 +155,13 @@ Response responsibilities:
 - preserve session identity
 - surface start/finish/error boundaries clearly
 - evolve cleanly toward AI SDK UI message streaming
+
+Implemented bridge direction:
+
+- `POST /chat` streams AI SDK UI-message chunks
+- `POST /agent` remains the one-shot recall path
+- `conversations.content_json` stores structured assistant/tool content for history reconstruction
+- the CLI currently renders text chunks only, while the future TUI can consume the richer stream surface
 
 ## AI SDK Alignment
 
@@ -200,7 +208,7 @@ Migration expectations:
 
 Likely backfill rules:
 
-- existing `user` / `assistant` / `system` roles map directly into `message_kind`
+- existing conversation roles remain unchanged
 - existing rows default to `status = complete`
 
 Do not rewrite historical data more than necessary.

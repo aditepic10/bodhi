@@ -142,6 +142,33 @@ describe("sqlite store workflows", () => {
 		});
 	});
 
+	test("conversation rows preserve structured assistant metadata for history reconstruction", async () => {
+		await store.appendMessage("assistant", "Tool call: store-fact", "session-structured", {
+			content_json: JSON.stringify([
+				{
+					input: { key: "preferred_shell", value: "zsh" },
+					providerExecuted: false,
+					toolCallId: "call-1",
+					toolName: "store-fact",
+					type: "tool-call",
+				},
+			]),
+			status: "complete",
+		});
+
+		const conversation = await store.getConversation("session-structured");
+
+		expect(conversation).toEqual([
+			expect.objectContaining({
+				content: "Tool call: store-fact",
+				content_json:
+					'[{"input":{"key":"preferred_shell","value":"zsh"},"providerExecuted":false,"toolCallId":"call-1","toolName":"store-fact","type":"tool-call"}]',
+				role: "assistant",
+				status: "complete",
+			}),
+		]);
+	});
+
 	test("chat session listing is deterministic when timestamps tie", async () => {
 		await store.upsertChatSession({
 			cwd: "/tmp",

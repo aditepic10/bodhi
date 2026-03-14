@@ -336,8 +336,8 @@ describe("cli workflows", () => {
 			},
 			async requestSse(_config, path, body, onEvent) {
 				requests.push({ body, method: "POST", path });
-				onEvent({ text: "Here is the latest retrieval state.", type: "text-delta" });
-				onEvent({ session_id: "chat-session-1", type: "finish" });
+				onEvent({ delta: "Here is the latest retrieval state.", id: "msg-1", type: "text-delta" });
+				onEvent({ finishReason: "stop", type: "finish" });
 			},
 		});
 
@@ -358,7 +358,7 @@ describe("cli workflows", () => {
 					session_id: "chat-session-1",
 				},
 				method: "POST",
-				path: "/agent",
+				path: "/chat",
 			},
 		]);
 		expect(stdout).toContain("Here is the latest retrieval state.");
