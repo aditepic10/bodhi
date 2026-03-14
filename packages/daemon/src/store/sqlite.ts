@@ -211,7 +211,12 @@ function deriveEventContent(event: BodhiEvent): string {
 }
 
 function normalizeFtsQuery(query: string): string {
-	return `"${query.replaceAll('"', '""')}"`;
+	const tokens = [...new Set(query.toLowerCase().match(/[a-z0-9_./-]+/g) ?? [])];
+	if (tokens.length === 0) {
+		return `"${query.replaceAll('"', '""')}"`;
+	}
+
+	return tokens.map((token) => `"${token.replaceAll('"', '""')}"`).join(" OR ");
 }
 
 function inferSource(type: string): StoredEvent["source"] {

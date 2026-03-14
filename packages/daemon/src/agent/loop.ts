@@ -3,6 +3,7 @@ import { type LanguageModel, type StreamTextResult, stepCountIs, streamText } fr
 import { nanoid } from "nanoid";
 
 import type { EventBus } from "../bus";
+import { createRetrievalService, type RetrievalService } from "../retrieval/service";
 import type { PipelineLike } from "../store/sqlite";
 import { createAgentToolRegistry } from "../tools/registry";
 import { resolveLanguageModel } from "./providers";
@@ -20,6 +21,7 @@ export interface AgentLoopOptions {
 	config: BodhiConfig;
 	model?: LanguageModel | null;
 	pipeline: PipelineLike;
+	retrieval?: RetrievalService;
 	store: Store;
 }
 
@@ -34,6 +36,8 @@ export interface AgentLoopResult {
 }
 
 export function createAgentLoop(options: AgentLoopOptions) {
+	const retrieval = options.retrieval ?? createRetrievalService({ store: options.store });
+
 	return {
 		async stream(request: AgentLoopRequest): Promise<AgentLoopResult> {
 			const model = options.model ?? resolveLanguageModel(options.config);
@@ -42,15 +46,12 @@ export function createAgentLoop(options: AgentLoopOptions) {
 			}
 
 			const sessionId = request.sessionId ?? nanoid();
-			const facts = await options.store.getFacts({
-				active_only: true,
-				limit: 100,
-				status: "active",
-			});
+			const context = await retrieval.retrieve(request.message);
 			const tools = createAgentToolRegistry({
 				bus: options.bus,
 				config: options.config,
 				pipeline: options.pipeline,
+				retrieval,
 				store: options.store,
 			});
 
@@ -64,7 +65,7 @@ export function createAgentLoop(options: AgentLoopOptions) {
 				},
 				prompt: request.message,
 				stopWhen: stepCountIs(10),
-				system: buildSystemPrompt(facts),
+				system: buildSystemPrompt(context),
 				tools,
 			});
 

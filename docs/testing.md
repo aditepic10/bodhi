@@ -8,6 +8,7 @@ The confidence target is user-visible behavior:
 - ingest to search
 - spool to replay
 - event to intel extraction to fact supersession
+- stored memory to bounded retrieval to recall answer
 - agent streaming over SSE
 - CLI command paths
 

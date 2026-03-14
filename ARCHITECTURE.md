@@ -24,6 +24,7 @@ Capture source or API request:
 - validate and redact through the pure pipeline
 - persist to SQLite
 - emit onto the event bus
+- retrieve bounded memory context before recall generation
 - serve query and agent responses over HTTP/SSE
 
 The hot path must stay available even when the LLM provider is slow or unavailable.
@@ -58,6 +59,7 @@ Runtime implementation:
 - `intel/`: background extraction service
 - `pipeline/`: validate/redact/enrich transforms
 - `query/`: search orchestration
+- `retrieval/`: retrieval planning and bounded memory fetch
 - `store/`: SQLite persistence and FTS
 - `daemon.ts`: top-level wiring and orchestration
 - `cli.ts`: thin command surface over the daemon
@@ -83,6 +85,7 @@ The architecture is intentionally optimized for these future changes:
 
 The lowest-friction seams today are:
 - provider registration
+- retrieval planner and retrieval service
 - tool registry
 - capture source interface
 - Hono route registration

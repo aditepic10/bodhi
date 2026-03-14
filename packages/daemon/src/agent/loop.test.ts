@@ -214,4 +214,132 @@ describe("agent workflows", () => {
 		expect(facts[0]?.created_by).toBe("agent");
 		expect(facts[0]?.value).toBe("zsh");
 	});
+
+	test("recall uses retrieved shell memory before generation instead of answering from an empty prompt", async () => {
+		const context = createTestContext();
+		await context.store.appendEvent(
+			{
+				created_at: 1_710_430_000,
+				event_id: "evt-agent-recall-shell-1",
+				metadata: {
+					command: "git status",
+					cwd: "/work/bodhi",
+					duration_ms: 12,
+					exit_code: 0,
+				},
+				type: "shell.command.executed",
+			},
+			"shell",
+		);
+
+		let capturedPrompt = "";
+		const model = createStreamModel(
+			[
+				[
+					{ type: "stream-start", warnings: [] },
+					{ id: "text-3", type: "text-start" },
+					{ delta: "You ran git status.", id: "text-3", type: "text-delta" },
+					{ id: "text-3", type: "text-end" },
+					{
+						finishReason: { raw: "stop", unified: "stop" },
+						type: "finish",
+						usage: {
+							inputTokens: { cacheRead: undefined, cacheWrite: undefined, noCache: 1, total: 1 },
+							outputTokens: { reasoning: undefined, text: 1, total: 1 },
+						},
+					},
+				],
+			],
+			(options) => {
+				capturedPrompt = JSON.stringify(options.prompt);
+			},
+		);
+
+		const loop = createAgentLoop({
+			bus: context.bus,
+			config: context.config,
+			model,
+			pipeline: context.pipeline,
+			store: context.store,
+		});
+		const { result } = await loop.stream({
+			message: "What commands have I run?",
+			sessionId: "session-recall-1",
+		});
+
+		expect(await result.text).toContain("git status");
+		expect(capturedPrompt).toContain("git status");
+		expect(capturedPrompt).toContain("shell.command.executed");
+	});
+
+	test("recall injects only bounded relevant facts instead of dumping all active facts into context", async () => {
+		const context = createTestContext();
+		await context.store.insertFact({
+			confidence: 0.95,
+			created_by: "api",
+			extraction_meta: undefined,
+			key: "preferred_editor",
+			schema_version: 1,
+			source_event_id: undefined,
+			status: "active",
+			supersedes_fact_id: undefined,
+			valid_from: undefined,
+			valid_to: undefined,
+			value: "neovim",
+		});
+		for (let index = 0; index < 12; index += 1) {
+			await context.store.insertFact({
+				confidence: 0.6,
+				created_by: "api",
+				extraction_meta: undefined,
+				key: `irrelevant_fact_${index}`,
+				schema_version: 1,
+				source_event_id: undefined,
+				status: "active",
+				supersedes_fact_id: undefined,
+				valid_from: undefined,
+				valid_to: undefined,
+				value: `value-${index}`,
+			});
+		}
+
+		let capturedPrompt = "";
+		const model = createStreamModel(
+			[
+				[
+					{ type: "stream-start", warnings: [] },
+					{ id: "text-4", type: "text-start" },
+					{ delta: "Your preferred editor is neovim.", id: "text-4", type: "text-delta" },
+					{ id: "text-4", type: "text-end" },
+					{
+						finishReason: { raw: "stop", unified: "stop" },
+						type: "finish",
+						usage: {
+							inputTokens: { cacheRead: undefined, cacheWrite: undefined, noCache: 1, total: 1 },
+							outputTokens: { reasoning: undefined, text: 1, total: 1 },
+						},
+					},
+				],
+			],
+			(options) => {
+				capturedPrompt = JSON.stringify(options.prompt);
+			},
+		);
+
+		const loop = createAgentLoop({
+			bus: context.bus,
+			config: context.config,
+			model,
+			pipeline: context.pipeline,
+			store: context.store,
+		});
+		const { result } = await loop.stream({
+			message: "What is my preferred editor?",
+			sessionId: "session-recall-2",
+		});
+
+		expect(await result.text).toContain("neovim");
+		expect(capturedPrompt).toContain("preferred_editor");
+		expect(capturedPrompt).not.toContain("irrelevant_fact_11");
+	});
 });
