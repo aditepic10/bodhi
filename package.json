@@ -1,0 +1,37 @@
+{
+  "name": "bodhi",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.10",
+  "workspaces": {
+    "packages": [
+      "packages/*"
+    ],
+    "catalog": {
+      "typescript": "5.9.3",
+      "@types/bun": "1.3.10",
+      "@tsconfig/bun": "1.0.10",
+      "zod": "4.3.6",
+      "@biomejs/biome": "2.4.7"
+    }
+  },
+  "scripts": {
+    "typecheck": "bun run --filter @bodhi/types typecheck && bun run --filter @bodhi/daemon typecheck",
+    "lint": "biome check .",
+    "format": "biome format . --write",
+    "test": "bun test",
+    "test:bail": "bun test --bail",
+    "test:verbose": "bun test --verbose",
+    "dev": "bun run --filter @bodhi/daemon dev",
+    "validate": "bash scripts/validate.sh",
+    "smoke": "bash scripts/smoke.sh",
+    "doctor": "bash scripts/doctor.sh",
+    "inspect-db": "bash scripts/inspect-db.sh"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@tsconfig/bun": "catalog:",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  }
+}

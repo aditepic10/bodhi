@@ -1,0 +1,34 @@
+# .claude/settings.toml — Claude Code hook configuration for Bodhi
+#
+# EXIT CODE SEMANTICS (critical for agent performance):
+#   Exit 0 = success, SILENT — nothing enters agent context
+#   Exit 2 = hard failure — errors surfaced to agent, forced to fix
+#
+# Never pipe passing output to agent. Only surface failures.
+
+[[hooks]]
+event = "PostToolUse"
+[hooks.matcher]
+tool_name = "edit_file"
+file_paths = ["**/*.ts"]
+command = "bash -lc 'export PATH=\"/opt/homebrew/bin:$HOME/.bun/bin:$PATH\"; cd \"$CLAUDE_PROJECT_DIR\" || exit 2; TYPE_OUT=$(mktemp); LINT_OUT=$(mktemp); bun run typecheck >\"$TYPE_OUT\" 2>&1 & TYPE_PID=$!; bun run lint >\"$LINT_OUT\" 2>&1 & LINT_PID=$!; wait \"$TYPE_PID\"; TYPE_STATUS=$?; wait \"$LINT_PID\"; LINT_STATUS=$?; if [ \"$TYPE_STATUS\" -ne 0 ] || [ \"$LINT_STATUS\" -ne 0 ]; then cat \"$TYPE_OUT\" \"$LINT_OUT\" >&2; rm -f \"$TYPE_OUT\" \"$LINT_OUT\"; exit 2; fi; rm -f \"$TYPE_OUT\" \"$LINT_OUT\"'"
+
+[[hooks]]
+event = "PostToolUse"
+[hooks.matcher]
+tool_name = "edit_file"
+file_paths = ["**/*.test.ts"]
+command = "bash -lc 'export PATH=\"/opt/homebrew/bin:$HOME/.bun/bin:$PATH\"; OUTPUT=$(cd \"$CLAUDE_PROJECT_DIR\" && bun test $CLAUDE_FILE_PATHS --bail 2>&1); STATUS=$?; if [ \"$STATUS\" -ne 0 ]; then echo \"$OUTPUT\" >&2; exit 2; fi'"
+
+[[hooks]]
+event = "PostToolUse"
+[hooks.matcher]
+tool_name = "edit_file"
+file_paths = ["**/store/**/*.ts", "**/pipeline/**/*.ts"]
+command = "bash -lc 'export PATH=\"/opt/homebrew/bin:$HOME/.bun/bin:$PATH\"; OUTPUT=$(cd \"$CLAUDE_PROJECT_DIR\" && bun test packages/daemon/src/workflows.test.ts --bail 2>&1); STATUS=$?; if [ \"$STATUS\" -ne 0 ]; then echo \"$OUTPUT\" >&2; exit 2; fi'"
+
+[[hooks]]
+event = "PreToolUse"
+[hooks.matcher]
+tool_name = "bash"
+command = "scripts/pre-commit-check.sh"
