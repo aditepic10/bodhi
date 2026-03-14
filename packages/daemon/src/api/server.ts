@@ -27,7 +27,7 @@ interface ServerDependencies {
 export interface RunningApiServer {
 	api: ApiContext;
 	app: Hono;
-	stop(): void;
+	stop(): Promise<void>;
 	url: string;
 }
 
@@ -180,8 +180,8 @@ export function startApiServer(
 	return {
 		api,
 		app,
-		stop() {
-			server.stop(true);
+		async stop() {
+			await server.stop(true);
 			if (api.config.transport === "unix") {
 				rmSync(api.config.socket_path, { force: true });
 			}

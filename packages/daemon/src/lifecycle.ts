@@ -104,6 +104,11 @@ export async function drainSpool(
 	pipeline: PipelineLike,
 	dataDir: string,
 	log: Logger,
+	onStored?: (event: {
+		raw: BodhiEvent;
+		transformed: BodhiEvent;
+		stored: Awaited<ReturnType<SqliteStore["appendEvent"]>>;
+	}) => void | Promise<void>,
 ): Promise<number> {
 	const spoolFiles = readdirSync(dataDir).filter(
 		(name) => name.startsWith("spool.") && name.endsWith(".jsonl") && !name.includes(".draining."),
@@ -131,7 +136,14 @@ export async function drainSpool(
 						continue;
 					}
 
-					await store.appendEvent(transformed, sourceForEvent(transformed));
+					const stored = await store.appendEvent(transformed, sourceForEvent(transformed));
+					if (onStored) {
+						await onStored({
+							raw: rawEvent,
+							stored,
+							transformed,
+						});
+					}
 					drained += 1;
 				} catch (error) {
 					log.warn("failed to drain spool line", {
