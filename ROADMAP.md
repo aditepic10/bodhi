@@ -21,6 +21,8 @@ Week 1 MVP is complete:
 
 - documentation baseline in repo
 - maintainability refactor of oversized files
+- terminal transcript capture ADR and privacy model
+- terminal output capture policy with redaction and size limits
 - Section 14 operational hardening items
 
 ## Non-Goals Right Now
@@ -39,7 +41,10 @@ Week 1 MVP is complete:
 
 ## Week 2
 
-Hardening, security, and the second capture source:
+Hardening, security, and richer capture:
+- terminal chat capture from interactive terminal AI tools
+- terminal response capture for AI assistant output in terminal sessions
+- bounded command output capture with truncation, redaction, and opt-in controls
 - git capture source
 - entropy-based secret scanning
 - extraction metadata

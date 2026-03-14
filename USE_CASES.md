@@ -15,6 +15,8 @@ This file is the in-repo map of the product and extension scenarios the architec
 
 These should be additive, not architectural rewrites:
 - new capture sources such as git, browser, or Slack
+- terminal AI chat capture with prompt/response pairing
+- bounded terminal output capture with redaction and truncation
 - new model providers
 - new query modes and agent tools
 - new clients over the same daemon API
