@@ -69,7 +69,7 @@ describe("sqlite store workflows", () => {
 				max_daily_extractions: 500,
 				model: {
 					provider: "anthropic",
-					model: "claude-sonnet-4-20250514",
+					model: "claude-sonnet-4-6",
 				},
 			},
 		});

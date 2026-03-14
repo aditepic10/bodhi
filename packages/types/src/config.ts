@@ -7,7 +7,7 @@ export const ModelProviderSchema = z.enum(["anthropic", "openai"]);
 
 export const ModelConfigSchema = z.object({
 	provider: ModelProviderSchema.default("anthropic"),
-	model: z.string().min(1).default("claude-sonnet-4-20250514"),
+	model: z.string().min(1).default("claude-sonnet-4-6"),
 });
 
 export const CaptureConfigSchema = z.object({
@@ -19,7 +19,7 @@ export const IntelConfigSchema = z.object({
 	max_daily_extractions: z.number().int().min(0).default(500),
 	model: ModelConfigSchema.default({
 		provider: "anthropic",
-		model: "claude-sonnet-4-20250514",
+		model: "claude-sonnet-4-6",
 	}),
 });
 
@@ -54,7 +54,7 @@ export const BodhiConfigSchema = z.object({
 		max_daily_extractions: 500,
 		model: {
 			provider: "anthropic",
-			model: "claude-sonnet-4-20250514",
+			model: "claude-sonnet-4-6",
 		},
 	}),
 	conversations: ConversationConfigSchema.default({
