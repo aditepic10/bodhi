@@ -266,6 +266,74 @@ describe("api server workflows", () => {
 		expect(body.facts[0]?.key).toBe("preferred_editor");
 	});
 
+	test("query returns matching stored events with provenance fields", async () => {
+		const { app } = createApiFixture();
+
+		await app.request("http://localhost/events", {
+			body: JSON.stringify(
+				makeEvent({
+					event_id: "evt-query-1",
+					metadata: {
+						command: "git status",
+						cwd: "/tmp/project",
+						duration_ms: 15,
+						exit_code: 0,
+					},
+				}),
+			),
+			headers: {
+				"content-type": "application/json",
+			},
+			method: "POST",
+		});
+		await app.request("http://localhost/events", {
+			body: JSON.stringify(
+				makeEvent({
+					event_id: "evt-query-2",
+					metadata: {
+						command: "ls -la",
+						cwd: "/tmp/project",
+						duration_ms: 7,
+						exit_code: 0,
+					},
+				}),
+			),
+			headers: {
+				"content-type": "application/json",
+			},
+			method: "POST",
+		});
+
+		const response = await app.request("http://localhost/query", {
+			body: JSON.stringify({
+				query: "git",
+			}),
+			headers: {
+				"content-type": "application/json",
+			},
+			method: "POST",
+		});
+		const body = (await response.json()) as {
+			results: Array<{
+				event_id: string;
+				schema_version: number;
+				source: string;
+				type: string;
+				metadata: {
+					command: string;
+				};
+			}>;
+		};
+
+		expect(response.status).toBe(200);
+		expect(body.results).toHaveLength(1);
+		expect(body.results[0]?.event_id).toBe("evt-query-1");
+		expect(body.results[0]?.type).toBe("shell.command.executed");
+		expect(body.results[0]?.schema_version).toBe(1);
+		expect(body.results[0]?.source).toBe("shell");
+		expect(body.results[0]?.metadata.command).toBe("git status");
+	});
+
 	test("facts rate limiting returns structured 429 responses", async () => {
 		const { app } = createApiFixture({
 			rate_limits: {

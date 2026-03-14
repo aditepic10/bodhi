@@ -11,6 +11,7 @@ import { createApiContext, jsonError, MAX_JSON_BYTES } from "./context";
 import { registerFactsRoute } from "./routes/facts";
 import { registerHealthRoute } from "./routes/health";
 import { registerIngestRoute } from "./routes/ingest";
+import { registerQueryRoute } from "./routes/query";
 import { registerStreamRoute } from "./routes/stream";
 
 interface ServerDependencies {
@@ -144,6 +145,7 @@ export function createApiApp(
 	registerHealthRoute(app, api);
 	registerIngestRoute(app, api);
 	registerFactsRoute(app, api);
+	registerQueryRoute(app, api);
 	registerStreamRoute(app, api);
 
 	return { app, api };
