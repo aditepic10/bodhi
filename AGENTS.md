@@ -2,8 +2,7 @@
 
 ## 1. Project Overview
 Bodhi is a personal memory daemon for engineers.
-Architecture: Hono daemon on a Unix domain socket plus thin clients.
-Monorepo: Bun workspaces with `@bodhi/types` and `@bodhi/daemon`.
+Architecture: Hono daemon on a Unix socket plus thin clients in a Bun workspace monorepo.
 
 ## 2. Tech Stack
 - Runtime: Bun 1.3.10
@@ -20,12 +19,10 @@ Monorepo: Bun workspaces with `@bodhi/types` and `@bodhi/daemon`.
 - `bun run typecheck`
 - `bun run lint`
 - `bun test`
-- `bun test --bail`
 - `bun run dev`
 - `scripts/doctor.sh`
 - `scripts/validate.sh`
 - `scripts/smoke.sh`
-- `scripts/inspect-db.sh`
 - `scripts/inspect-db.sh "SELECT * FROM events LIMIT 5"`
 
 ## 3.5. Iteration Workflow
@@ -37,6 +34,11 @@ Monorepo: Bun workspaces with `@bodhi/types` and `@bodhi/daemon`.
 6. Trace a single event with `grep <event_id>` in daemon logs.
 7. Inspect DB state with `scripts/inspect-db.sh "YOUR SQL"`.
 8. Run `scripts/doctor.sh` if the environment looks wrong.
+
+## 3.6. Docs First
+- Read `README.md` and `ARCHITECTURE.md` before changing module boundaries or invariants.
+- Read `docs/adr/README.md` plus relevant ADRs before changing architecture decisions.
+- Read `ROADMAP.md`, `USE_CASES.md`, and `docs/testing.md` before planning extensions or test strategy.
 
 ## 4. Code Conventions
 - `const` over `let`. Never `var`.
@@ -51,11 +53,9 @@ Monorepo: Bun workspaces with `@bodhi/types` and `@bodhi/daemon`.
 - Write transactions use `BEGIN IMMEDIATE`.
 
 ## 5. Testing
-We test workflows, not methods.
 - Framework: `bun test` with colocated `*.test.ts`.
 - Use real SQLite `:memory:`. Do not mock DB, pipeline, or bus.
 - Mock only external LLM calls.
-- Test names describe user-visible workflows.
 - Shared test utilities live in `packages/daemon/src/test-utils.ts`.
 
 ## 6. Architecture Boundaries
