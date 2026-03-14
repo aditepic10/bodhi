@@ -1,1 +1,121 @@
-export {};
+import type { BodhiConfig, BodhiEvent, Fact, PipelineConfig } from "@bodhi/types";
+
+import { BodhiConfigSchema } from "@bodhi/types";
+
+import { type BusEventMap, createEventBus, type EventBus } from "./bus";
+import { createLogger } from "./logger";
+import {
+	applyPragmas,
+	createStore,
+	ensureCoreSchema,
+	openDatabase,
+	type PipelineLike,
+	type SqliteStore,
+	setupFts,
+} from "./store/sqlite";
+
+export interface TestContext {
+	config: BodhiConfig;
+	store: SqliteStore;
+	pipeline: PipelineLike;
+	bus: EventBus;
+}
+
+export function createTestStore(config?: Partial<BodhiConfig>): SqliteStore {
+	const resolved = BodhiConfigSchema.parse(config ?? {});
+	const db = openDatabase(":memory:");
+	applyPragmas(db);
+	ensureCoreSchema(db);
+	setupFts(db);
+	return createStore(db, {
+		autoApprove: resolved.intel.auto_approve,
+	});
+}
+
+export function createTestPipeline(_config?: Partial<PipelineConfig>): PipelineLike {
+	return {
+		process(event) {
+			return event;
+		},
+	};
+}
+
+export function createTestBus(): EventBus {
+	return createEventBus(createLogger("error"));
+}
+
+export function createTestContext(overrides?: Partial<BodhiConfig>): TestContext {
+	const config = BodhiConfigSchema.parse(overrides ?? {});
+	return {
+		config,
+		store: createTestStore(config),
+		pipeline: createTestPipeline(config.pipeline),
+		bus: createTestBus(),
+	};
+}
+
+export function stubLLMResponse(response: string): void {
+	Reflect.set(globalThis, "__bodhiStubLLMResponse", response);
+}
+
+export function makeEvent(overrides: Partial<BodhiEvent> = {}): BodhiEvent {
+	const base: BodhiEvent = {
+		event_id: "evt-test-1",
+		type: "shell.command.executed",
+		metadata: {
+			command: "echo hello",
+			exit_code: 0,
+			duration_ms: 12,
+			cwd: "/tmp",
+		},
+		schema_version: 1,
+		created_at: 1_700_000_000,
+	};
+
+	return {
+		...base,
+		...overrides,
+		metadata: {
+			...base.metadata,
+			...(overrides as BodhiEvent).metadata,
+		},
+	} as BodhiEvent;
+}
+
+export function makeFact(
+	overrides: Partial<Fact> = {},
+): Omit<Fact, "id" | "created_at" | "updated_at"> {
+	return {
+		key: "editor",
+		value: "vim",
+		created_by: "intel",
+		source_event_id: undefined,
+		status: "active",
+		confidence: 0.9,
+		schema_version: 1,
+		supersedes_fact_id: undefined,
+		extraction_meta: undefined,
+		valid_from: undefined,
+		valid_to: undefined,
+		...overrides,
+	};
+}
+
+export function waitForEvent<K extends keyof BusEventMap>(
+	bus: EventBus,
+	type: K,
+	timeout = 1000,
+): Promise<BusEventMap[K]> {
+	return new Promise((resolve, reject) => {
+		const timer = setTimeout(() => {
+			unsubscribe();
+			reject(new Error(`timed out waiting for ${type}`));
+		}, timeout);
+
+		const unsubscribe = bus.on(type, (payload) => {
+			clearTimeout(timer);
+			unsubscribe();
+			resolve(payload);
+		});
+	});
+}
