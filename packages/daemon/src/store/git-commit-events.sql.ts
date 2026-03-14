@@ -12,6 +12,7 @@ export const gitCommitEventsTable = sqliteTable(
 			.references(() => eventsTable.id, { onDelete: "cascade" }),
 		hash: text("hash").notNull(),
 		message: text("message").notNull(),
+		parent_count: integer("parent_count").notNull().default(0),
 		files_changed: integer("files_changed").notNull().default(0),
 		insertions: integer("insertions"),
 		deletions: integer("deletions"),

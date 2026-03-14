@@ -34,6 +34,7 @@ import {
 	loadGitCommitFileLists,
 	loadGitCommitPayloads,
 	loadGitMergePayloads,
+	loadGitRewriteMappings,
 	loadGitRewritePayloads,
 	loadNotePayloads,
 	loadShellCommandPayloads,
@@ -96,6 +97,14 @@ async function hydrateEvents(
 		envelopes
 			.filter((envelope): envelope is TypedEnvelope<"git.commit.created"> => {
 				return envelope.type === "git.commit.created";
+			})
+			.map((envelope) => envelope.id),
+	);
+	const rewriteMappings = await loadGitRewriteMappings(
+		db,
+		envelopes
+			.filter((envelope): envelope is TypedEnvelope<"git.rewrite"> => {
+				return envelope.type === "git.rewrite";
 			})
 			.map((envelope) => envelope.id),
 	);
@@ -239,6 +248,7 @@ async function hydrateEvents(
 				context: mapContext(contexts.get(envelope.id)),
 				envelope,
 				payload,
+				rewriteMappings: rewriteMappings.get(envelope.id),
 			}),
 		);
 	}

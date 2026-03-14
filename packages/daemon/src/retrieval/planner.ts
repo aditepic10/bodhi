@@ -42,7 +42,7 @@ const RETRIEVAL_FACETS: readonly RetrievalFacet[] = [
 		sources: ["shell"],
 	},
 	{
-		eventTypes: ["git.commit.created"],
+		eventTypes: ["git.commit.created", "git.checkout", "git.merge", "git.rewrite"],
 		keywords: ["branch", "branches", "commit", "commits", "git", "merge", "merged"],
 		sources: ["git"],
 	},

@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { afterEach, describe, expect, test } from "bun:test";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -55,6 +56,9 @@ function createRuntime(
 		commandExists() {
 			return true;
 		},
+		cwd() {
+			return process.cwd();
+		},
 		isProcessAlive() {
 			return false;
 		},
@@ -101,6 +105,19 @@ function createRuntime(
 	} as CliRuntime & { _buffers: ReturnType<typeof createBuffers> };
 }
 
+function initGitRepo(repoPath: string): void {
+	execFileSync("git", ["init", "-b", "main", repoPath], {
+		env: {
+			...process.env,
+			GIT_AUTHOR_EMAIL: "bodhi@example.com",
+			GIT_AUTHOR_NAME: "Bodhi Test",
+			GIT_COMMITTER_EMAIL: "bodhi@example.com",
+			GIT_COMMITTER_NAME: "Bodhi Test",
+		},
+		stdio: "ignore",
+	});
+}
+
 afterEach(() => {
 	process.env.HOME = originalHome;
 	for (const dir of tempDirs.splice(0)) {
@@ -111,11 +128,17 @@ afterEach(() => {
 describe("cli workflows", () => {
 	test("init writes config and installs shell hooks", async () => {
 		const root = makeTempDir();
+		const repoPath = join(root, "repo");
 		process.env.HOME = root;
 		const config = makeConfig(root);
+		mkdirp(repoPath);
+		initGitRepo(repoPath);
 		const runtime = createRuntime(config, {
 			commandExists(command: string) {
 				return command === "python3";
+			},
+			cwd() {
+				return repoPath;
 			},
 		});
 
@@ -126,7 +149,11 @@ describe("cli workflows", () => {
 		expect(existsSync(join(config.config_dir, "config.toml"))).toBe(true);
 		expect(readFileSync(defaultPath(root, ".zshrc"), "utf8")).toContain("# >>> bodhi >>>");
 		expect(readFileSync(defaultPath(root, ".bashrc"), "utf8")).toContain("# >>> bodhi >>>");
+		expect(readFileSync(join(repoPath, ".git", "hooks", "post-commit"), "utf8")).toContain(
+			"# >>> bodhi git >>>",
+		);
 		expect(stdout).toContain("Installed zsh hook");
+		expect(stdout).toContain("Installed git hooks");
 		expect(stdout).toContain("Config:");
 		expect(stderr).toContain("uuidgen not found");
 		expect(stderr).toContain("jq not found");

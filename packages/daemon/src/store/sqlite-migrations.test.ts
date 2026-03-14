@@ -54,6 +54,7 @@ describe("sqlite migration workflows", () => {
 					"git_commit_files",
 					"git_merge_events",
 					"git_rewrite_events",
+					"git_rewrite_mappings",
 					"note_events",
 					"shell_command_events",
 				]),

@@ -51,6 +51,7 @@ Typed substrate and scoped retrieval:
 ## Phase 3
 
 Git lifecycle capture:
+- detailed implementation blueprint in [git-lifecycle-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/git-lifecycle-blueprint.md)
 - authoritative git events from hooks:
   - `git.commit.created`
   - `git.checkout`

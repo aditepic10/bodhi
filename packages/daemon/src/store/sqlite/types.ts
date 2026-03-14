@@ -11,6 +11,7 @@ import type { gitCommitEventsTable } from "../git-commit-events.sql";
 import type { gitCommitFilesTable } from "../git-commit-files.sql";
 import type { gitMergeEventsTable } from "../git-merge-events.sql";
 import type { gitRewriteEventsTable } from "../git-rewrite-events.sql";
+import type { gitRewriteMappingsTable } from "../git-rewrite-mappings.sql";
 import type { noteEventsTable } from "../note-events.sql";
 import type { shellCommandEventsTable } from "../shell-command-events.sql";
 
@@ -27,6 +28,7 @@ export type GitCommitFileRow = typeof gitCommitFilesTable.$inferSelect;
 export type GitCheckoutEventRow = typeof gitCheckoutEventsTable.$inferSelect;
 export type GitMergeEventRow = typeof gitMergeEventsTable.$inferSelect;
 export type GitRewriteEventRow = typeof gitRewriteEventsTable.$inferSelect;
+export type GitRewriteMappingRow = typeof gitRewriteMappingsTable.$inferSelect;
 export type AiPromptEventRow = typeof aiPromptEventsTable.$inferSelect;
 export type AiToolCallEventRow = typeof aiToolCallEventsTable.$inferSelect;
 export type NoteEventRow = typeof noteEventsTable.$inferSelect;
@@ -65,6 +67,7 @@ export interface StoredEventParts<TType extends EventType = EventType> {
 	envelope: EventEnvelopeRow;
 	payload: EventPayloadByType[TType];
 	commitFiles?: string[];
+	rewriteMappings?: Array<{ from_hash: string; to_hash: string }>;
 }
 
 export interface EventTypeHandler<TType extends EventType = EventType> {

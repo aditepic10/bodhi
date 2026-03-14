@@ -79,11 +79,11 @@ function renderEventLine(event: StoredEvent): string {
 		case "git.commit.created":
 			return `- ${event.type}: ${sanitizePromptField(event.metadata.message)}${renderContextDetails(event)}`;
 		case "git.checkout":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.from_branch ?? "")} -> ${sanitizePromptField(event.metadata.to_branch ?? "")}${renderContextDetails(event)}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.checkout_kind)} ${sanitizePromptField(event.metadata.from_branch ?? "")} -> ${sanitizePromptField(event.metadata.to_branch ?? "")}${renderContextDetails(event)}`;
 		case "git.merge":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.merged_branch)} into ${sanitizePromptField(event.metadata.branch ?? "")}${renderContextDetails(event)}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.merge_commit_sha)} parents ${String(event.metadata.parent_count)}${event.metadata.is_squash ? " squash" : ""}${renderContextDetails(event)}`;
 		case "git.rewrite":
-			return `- ${event.type}: ${sanitizePromptField(event.metadata.rewrite_type)} ${String(event.metadata.rewritten_commits)}${renderContextDetails(event)}`;
+			return `- ${event.type}: ${sanitizePromptField(event.metadata.rewrite_type)} ${String(event.metadata.rewritten_commit_count)}${renderContextDetails(event)}`;
 		case "ai.prompt":
 			return `- ${event.type}: ${sanitizePromptField(event.metadata.content)}${renderContextDetails(event)}`;
 		case "ai.tool_call":

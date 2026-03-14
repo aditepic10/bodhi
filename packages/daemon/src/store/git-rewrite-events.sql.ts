@@ -11,7 +11,7 @@ export const gitRewriteEventsTable = sqliteTable(
 			.unique()
 			.references(() => eventsTable.id, { onDelete: "cascade" }),
 		rewrite_type: text("rewrite_type").notNull(),
-		rewritten_commits: integer("rewritten_commits").notNull().default(1),
+		rewritten_commit_count: integer("rewritten_commit_count").notNull().default(1),
 	},
 	(table) => [uniqueIndex("idx_git_rewrite_events_event_id").on(table.event_id)],
 );

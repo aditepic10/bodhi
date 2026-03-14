@@ -1,6 +1,7 @@
 import {
 	type ActivityContext,
 	EventSourceSchema,
+	GitCheckoutKindSchema,
 	GitRewriteSchema,
 	type StoredEvent,
 } from "@bodhi/types";
@@ -60,13 +61,13 @@ export function hydrateGitCommitCreated(
 		...sharedFields(parts.envelope, parts.context),
 		type: "git.commit.created",
 		metadata: {
-			branch: parts.context?.branch ?? "",
 			deletions: parts.payload.deletions ?? undefined,
 			files: parts.commitFiles,
 			files_changed: parts.payload.files_changed,
 			hash: parts.payload.hash,
 			insertions: parts.payload.insertions ?? undefined,
 			message: parts.payload.message,
+			parent_count: parts.payload.parent_count,
 		},
 	};
 }
@@ -78,9 +79,9 @@ export function hydrateGitCheckout(
 		...sharedFields(parts.envelope, parts.context),
 		type: "git.checkout",
 		metadata: {
+			checkout_kind: GitCheckoutKindSchema.parse(parts.payload.checkout_kind),
 			from_branch: parts.payload.from_branch ?? undefined,
 			from_sha: parts.payload.from_sha ?? undefined,
-			is_file_checkout: Boolean(parts.payload.is_file_checkout),
 			to_branch: parts.payload.to_branch ?? undefined,
 			to_sha: parts.payload.to_sha ?? undefined,
 		},
@@ -94,9 +95,9 @@ export function hydrateGitMerge(
 		...sharedFields(parts.envelope, parts.context),
 		type: "git.merge",
 		metadata: {
-			branch: parts.context?.branch,
 			is_squash: Boolean(parts.payload.is_squash),
-			merged_branch: parts.payload.merged_branch,
+			merge_commit_sha: parts.payload.merge_commit_sha,
+			parent_count: parts.payload.parent_count,
 		},
 	};
 }
@@ -108,10 +109,11 @@ export function hydrateGitRewrite(
 		...sharedFields(parts.envelope, parts.context),
 		type: "git.rewrite",
 		metadata: {
+			mappings: parts.rewriteMappings,
 			rewrite_type: GitRewriteSchema.shape.metadata.shape.rewrite_type.parse(
 				parts.payload.rewrite_type,
 			),
-			rewritten_commits: parts.payload.rewritten_commits,
+			rewritten_commit_count: parts.payload.rewritten_commit_count,
 		},
 	};
 }

@@ -1,5 +1,5 @@
 import { existsSync, writeFileSync } from "node:fs";
-
+import { installGitHooks } from "../capture/git";
 import {
 	defaultRcPath,
 	detectShellDependencies,
@@ -44,6 +44,19 @@ async function handleInit(runtime: CliRuntime): Promise<number> {
 			socketPath: config.socket_path,
 		});
 		writeLine(runtime.stdout, `Installed ${shell} hook: ${rcPath}`);
+	}
+
+	const gitHooks = installGitHooks({
+		cwd: runtime.cwd(),
+		dataDir: config.data_dir,
+		socketPath: config.socket_path,
+	});
+	if (gitHooks.skippedReason === "not-a-git-repo") {
+		writeLine(runtime.stdout, "Skipped git hooks: current directory is not a git repo");
+	} else if (gitHooks.skippedReason === "git-not-found") {
+		writeLine(runtime.stderr, "Warning: git not found; git lifecycle hooks were not installed");
+	} else if (gitHooks.hooksDir) {
+		writeLine(runtime.stdout, `Installed git hooks: ${gitHooks.hooksDir}`);
 	}
 
 	writeLine(runtime.stdout, `Config: ${configPath}`);

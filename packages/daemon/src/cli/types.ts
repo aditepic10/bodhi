@@ -41,6 +41,7 @@ export interface JsonResponse {
 export interface CliRuntime {
 	argv: readonly string[];
 	commandExists(command: string): boolean;
+	cwd(): string;
 	isProcessAlive(pid: number): boolean;
 	loadConfig(overrides?: Record<string, unknown>): BodhiConfig;
 	requestJson(config: BodhiConfig, path: string, options?: RequestOptions): Promise<JsonResponse>;

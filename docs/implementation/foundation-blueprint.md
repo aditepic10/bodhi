@@ -158,7 +158,11 @@ Build the storage and capture foundation required for:
 
 ### Git lifecycle capture
 
-Authoritative events should come from Git hooks, not shell parsing:
+Authoritative events should come from Git hooks, not shell parsing.
+
+See the dedicated implementation plan in [git-lifecycle-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/git-lifecycle-blueprint.md).
+
+Summary:
 
 - `post-commit` -> `git.commit.created`
 - `post-checkout` -> `git.checkout`

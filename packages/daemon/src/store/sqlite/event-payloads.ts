@@ -10,6 +10,7 @@ import { gitCommitEventsTable } from "../git-commit-events.sql";
 import { gitCommitFilesTable } from "../git-commit-files.sql";
 import { gitMergeEventsTable } from "../git-merge-events.sql";
 import { gitRewriteEventsTable } from "../git-rewrite-events.sql";
+import { gitRewriteMappingsTable } from "../git-rewrite-mappings.sql";
 import { noteEventsTable } from "../note-events.sql";
 import { shellCommandEventsTable } from "../shell-command-events.sql";
 import type {
@@ -21,6 +22,7 @@ import type {
 	GitCommitEventRow,
 	GitMergeEventRow,
 	GitRewriteEventRow,
+	GitRewriteMappingRow,
 	NoteEventRow,
 	ShellCommandEventRow,
 } from "./types";
@@ -78,6 +80,7 @@ export function insertGitCommitPayload(
 			hash: event.metadata.hash,
 			insertions: event.metadata.insertions ?? null,
 			message: event.metadata.message,
+			parent_count: event.metadata.parent_count,
 		})
 		.run();
 
@@ -102,10 +105,10 @@ export function insertGitCheckoutPayload(
 	orm
 		.insert(gitCheckoutEventsTable)
 		.values({
+			checkout_kind: event.metadata.checkout_kind,
 			event_id: eventId,
 			from_branch: event.metadata.from_branch ?? null,
 			from_sha: event.metadata.from_sha ?? null,
-			is_file_checkout: event.metadata.is_file_checkout ?? false,
 			to_branch: event.metadata.to_branch ?? null,
 			to_sha: event.metadata.to_sha ?? null,
 		})
@@ -123,7 +126,8 @@ export function insertGitMergePayload(
 		.values({
 			event_id: eventId,
 			is_squash: event.metadata.is_squash ?? false,
-			merged_branch: event.metadata.merged_branch,
+			merge_commit_sha: event.metadata.merge_commit_sha,
+			parent_count: event.metadata.parent_count,
 		})
 		.run();
 }
@@ -139,9 +143,21 @@ export function insertGitRewritePayload(
 		.values({
 			event_id: eventId,
 			rewrite_type: event.metadata.rewrite_type,
-			rewritten_commits: event.metadata.rewritten_commits,
+			rewritten_commit_count: event.metadata.rewritten_commit_count,
 		})
 		.run();
+
+	for (const mapping of event.metadata.mappings ?? []) {
+		orm
+			.insert(gitRewriteMappingsTable)
+			.values({
+				event_id: eventId,
+				id: nanoid(),
+				new_commit_sha: mapping.to_hash,
+				old_commit_sha: mapping.from_hash,
+			})
+			.run();
+	}
 }
 
 export function insertAiPromptPayload(
@@ -305,6 +321,35 @@ export async function loadGitRewritePayloads(
 			.where(inArray(gitRewriteEventsTable.event_id, [...eventIds]))
 			.all(),
 	);
+}
+
+export async function loadGitRewriteMappings(
+	db: Database,
+	eventIds: readonly string[],
+): Promise<Map<string, Array<{ from_hash: string; to_hash: string }>>> {
+	if (eventIds.length === 0) {
+		return new Map();
+	}
+
+	const orm = drizzle(db);
+	const rows: GitRewriteMappingRow[] = orm
+		.select()
+		.from(gitRewriteMappingsTable)
+		.where(inArray(gitRewriteMappingsTable.event_id, [...eventIds]))
+		.orderBy(asc(gitRewriteMappingsTable._rowid))
+		.all();
+
+	const mappings = new Map<string, Array<{ from_hash: string; to_hash: string }>>();
+	for (const row of rows) {
+		const existing = mappings.get(row.event_id) ?? [];
+		existing.push({
+			from_hash: row.old_commit_sha,
+			to_hash: row.new_commit_sha,
+		});
+		mappings.set(row.event_id, existing);
+	}
+
+	return mappings;
 }
 
 export async function loadAiPromptPayloads(

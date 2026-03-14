@@ -10,7 +10,8 @@ export const gitMergeEventsTable = sqliteTable(
 			.notNull()
 			.unique()
 			.references(() => eventsTable.id, { onDelete: "cascade" }),
-		merged_branch: text("merged_branch").notNull(),
+		merge_commit_sha: text("merge_commit_sha").notNull(),
+		parent_count: integer("parent_count").notNull().default(0),
 		is_squash: integer("is_squash", { mode: "boolean" }).notNull().default(false),
 	},
 	(table) => [uniqueIndex("idx_git_merge_events_event_id").on(table.event_id)],

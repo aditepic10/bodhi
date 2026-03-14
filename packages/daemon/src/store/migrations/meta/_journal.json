@@ -8,6 +8,13 @@
       "when": 1773510511468,
       "tag": "0000_flaky_vivisector",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1773516315478,
+      "tag": "0001_git_lifecycle_phase_one",
+      "breakpoints": true
     }
   ]
 }

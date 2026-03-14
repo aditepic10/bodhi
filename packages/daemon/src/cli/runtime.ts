@@ -16,6 +16,9 @@ export function createCliRuntime(): CliRuntime {
 	return {
 		argv: process.argv.slice(2),
 		commandExists: defaultCommandExists,
+		cwd() {
+			return process.cwd();
+		},
 		isProcessAlive(pid: number) {
 			try {
 				process.kill(pid, 0);

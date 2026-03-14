@@ -40,13 +40,14 @@ export function deriveSearchText(event: BodhiEvent): string {
 		case "git.commit.created":
 			return joinTokens(
 				event.metadata.message,
-				event.metadata.branch,
+				String(event.metadata.parent_count),
 				event.metadata.files?.join(" "),
 				context,
 			);
 		case "git.checkout":
 			return joinTokens(
 				"checkout",
+				event.metadata.checkout_kind,
 				event.metadata.from_branch,
 				event.metadata.to_branch,
 				event.metadata.from_sha,
@@ -56,15 +57,18 @@ export function deriveSearchText(event: BodhiEvent): string {
 		case "git.merge":
 			return joinTokens(
 				"merge",
-				event.metadata.branch,
-				event.metadata.merged_branch,
+				event.metadata.merge_commit_sha,
+				String(event.metadata.parent_count),
 				event.metadata.is_squash ? "squash" : undefined,
 				context,
 			);
 		case "git.rewrite":
 			return joinTokens(
 				event.metadata.rewrite_type,
-				String(event.metadata.rewritten_commits),
+				String(event.metadata.rewritten_commit_count),
+				event.metadata.mappings
+					?.map((mapping) => `${mapping.from_hash} ${mapping.to_hash}`)
+					.join(" "),
 				context,
 			);
 		case "ai.prompt":

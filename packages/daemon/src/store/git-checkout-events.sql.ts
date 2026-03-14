@@ -14,7 +14,7 @@ export const gitCheckoutEventsTable = sqliteTable(
 		to_branch: text("to_branch"),
 		from_sha: text("from_sha"),
 		to_sha: text("to_sha"),
-		is_file_checkout: integer("is_file_checkout", { mode: "boolean" }).notNull().default(false),
+		checkout_kind: text("checkout_kind").notNull(),
 	},
 	(table) => [uniqueIndex("idx_git_checkout_events_event_id").on(table.event_id)],
 );

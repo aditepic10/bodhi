@@ -25,6 +25,20 @@ export const ActivityContextSchema = z
 	})
 	.strict();
 
+export const GitCheckoutKindSchema = z.enum([
+	"branch-switch",
+	"detached-head",
+	"file-checkout",
+	"initial-clone",
+]);
+
+export const GitRewriteTypeSchema = z.enum(["rebase", "amend"]);
+
+export const GitRewriteMappingSchema = z.object({
+	from_hash: z.string(),
+	to_hash: z.string(),
+});
+
 export const EventTypeSchema = z.enum([
 	"shell.command.executed",
 	"shell.command.started",
@@ -72,7 +86,7 @@ export const GitCommitCreatedSchema = EventEnvelopeSchema.extend({
 	metadata: z.object({
 		hash: z.string(),
 		message: z.string(),
-		branch: z.string(),
+		parent_count: z.number().int().min(0),
 		files_changed: z.number().int().min(0),
 		files: z.array(z.string()).optional(),
 		insertions: z.number().int().min(0).optional(),
@@ -87,15 +101,15 @@ export const GitCheckoutSchema = EventEnvelopeSchema.extend({
 		to_branch: z.string().optional(),
 		from_sha: z.string().optional(),
 		to_sha: z.string().optional(),
-		is_file_checkout: z.boolean().optional(),
+		checkout_kind: GitCheckoutKindSchema,
 	}),
 });
 
 export const GitMergeSchema = EventEnvelopeSchema.extend({
 	type: z.literal("git.merge"),
 	metadata: z.object({
-		branch: z.string().optional(),
-		merged_branch: z.string(),
+		merge_commit_sha: z.string(),
+		parent_count: z.number().int().min(0),
 		is_squash: z.boolean().optional(),
 	}),
 });
@@ -103,8 +117,9 @@ export const GitMergeSchema = EventEnvelopeSchema.extend({
 export const GitRewriteSchema = EventEnvelopeSchema.extend({
 	type: z.literal("git.rewrite"),
 	metadata: z.object({
-		rewrite_type: z.enum(["rebase", "amend"]),
-		rewritten_commits: z.number().int().min(1),
+		rewrite_type: GitRewriteTypeSchema,
+		rewritten_commit_count: z.number().int().min(1),
+		mappings: z.array(GitRewriteMappingSchema).optional(),
 	}),
 });
 
@@ -153,6 +168,9 @@ export const IngestEventSchema = z.intersection(
 export type EventType = z.infer<typeof EventTypeSchema>;
 export type ActivityContext = z.infer<typeof ActivityContextSchema>;
 export type GitState = z.infer<typeof GitStateSchema>;
+export type GitCheckoutKind = z.infer<typeof GitCheckoutKindSchema>;
+export type GitRewriteType = z.infer<typeof GitRewriteTypeSchema>;
+export type GitRewriteMapping = z.infer<typeof GitRewriteMappingSchema>;
 export type EventEnvelope = z.infer<typeof EventEnvelopeSchema>;
 export type ShellCommandExecutedEvent = z.infer<typeof ShellCommandExecutedSchema>;
 export type ShellCommandStartedEvent = z.infer<typeof ShellCommandStartedSchema>;
