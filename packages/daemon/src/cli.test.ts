@@ -90,6 +90,7 @@ function createRuntime(
 		spawnDaemon() {
 			return {
 				pid: 4242,
+				startupLogPath: undefined,
 				unref() {},
 			};
 		},
@@ -241,6 +242,34 @@ describe("cli workflows", () => {
 		expect(signals).toEqual([{ pid: 4242, signal: "SIGTERM" }]);
 		expect(stdout).toContain("Bodhi started (pid 4242)");
 		expect(stdout).toContain("Bodhi stopped (pid 4242)");
+	});
+
+	test("start surfaces daemon startup log when health never comes up", async () => {
+		const root = makeTempDir();
+		const config = makeConfig(root);
+		mkdirp(config.data_dir);
+		const startupLogPath = join(config.data_dir, "daemon-startup.log");
+		writeFileSync(
+			startupLogPath,
+			"prepareQuery failed\nSQLITE_ERROR: table events already exists\n",
+		);
+
+		const runtime = createRuntime(config, {
+			async requestJson() {
+				throw new Error("connect ENOENT");
+			},
+			spawnDaemon() {
+				return {
+					pid: 4242,
+					startupLogPath,
+					unref() {},
+				};
+			},
+		});
+
+		await expect(runCli(["start"], runtime)).rejects.toThrow(
+			"SQLITE_ERROR: table events already exists",
+		);
 	});
 });
 

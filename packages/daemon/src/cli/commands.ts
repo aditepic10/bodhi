@@ -15,6 +15,7 @@ import {
 	HELP_TEXT,
 	POLL_INTERVAL_MS,
 	readPid,
+	readRecentLogLines,
 	readStatusSnapshot,
 	renderDefaultConfigToml,
 	STOP_TIMEOUT_MS,
@@ -68,7 +69,7 @@ async function handleStart(runtime: CliRuntime): Promise<number> {
 	const config = runtime.loadConfig();
 	const existingPid = readPid(config);
 	if (existingPid && runtime.isProcessAlive(existingPid)) {
-		const health = await waitForHealth(runtime, config);
+		const health = await waitForHealth(runtime, config, existingPid);
 		writeLine(runtime.stdout, `Bodhi already running (pid ${existingPid})`);
 		writeLine(
 			runtime.stdout,
@@ -80,13 +81,21 @@ async function handleStart(runtime: CliRuntime): Promise<number> {
 		return 0;
 	}
 
-	const child = runtime.spawnDaemon();
+	const child = runtime.spawnDaemon(config);
 	child.unref();
 	if (!child.pid) {
 		throw new Error("failed to spawn daemon");
 	}
 
-	await waitForHealth(runtime, config);
+	try {
+		await waitForHealth(runtime, config, child.pid);
+	} catch (error) {
+		const startupLog = child.startupLogPath ? readRecentLogLines(child.startupLogPath) : [];
+		const tail = startupLog.length > 0 ? `\n${startupLog.join("\n")}` : "";
+		throw new Error(
+			`daemon failed to start: ${error instanceof Error ? error.message : String(error)}${tail}\nRun \`bun run --filter @bodhi/daemon dev\` for foreground logs.`,
+		);
+	}
 	writeLine(runtime.stdout, `Bodhi started (pid ${child.pid})`);
 	writeLine(
 		runtime.stdout,

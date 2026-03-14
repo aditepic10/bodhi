@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { openSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadConfig } from "../config";
@@ -31,14 +33,17 @@ export function createCliRuntime(): CliRuntime {
 		signalProcess(pid: number, signal: NodeJS.Signals) {
 			process.kill(pid, signal);
 		},
-		spawnDaemon() {
+		spawnDaemon(config) {
+			const startupLogPath = join(config.data_dir, "daemon-startup.log");
+			const startupLogFd = openSync(startupLogPath, "a");
 			const child = spawn(process.execPath, ["run", daemonEntry], {
 				detached: true,
 				env: process.env,
-				stdio: "ignore",
+				stdio: ["ignore", startupLogFd, startupLogFd],
 			});
 			return {
 				pid: child.pid,
+				startupLogPath,
 				unref() {
 					child.unref();
 				},

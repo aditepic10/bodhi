@@ -5,7 +5,7 @@ import type { BodhiConfig } from "@bodhi/types";
 
 import type { CliRuntime, HealthResponse, StatusSnapshot, WritableLike } from "./types";
 
-type RuntimeHealthProbe = Pick<CliRuntime, "requestJson" | "sleep">;
+type RuntimeHealthProbe = Pick<CliRuntime, "isProcessAlive" | "requestJson" | "sleep">;
 
 export const START_TIMEOUT_MS = 5_000;
 export const STOP_TIMEOUT_MS = 5_000;
@@ -21,6 +21,18 @@ Commands:
 
 export function writeLine(output: WritableLike, value = ""): void {
 	output.write(`${value}\n`);
+}
+
+export function readRecentLogLines(path: string, limit = 20): string[] {
+	if (!existsSync(path)) {
+		return [];
+	}
+
+	return readFileSync(path, "utf8")
+		.split(/\r?\n/)
+		.map((line) => line.trimEnd())
+		.filter((line) => line.length > 0)
+		.slice(-limit);
 }
 
 export function configPathFor(config: BodhiConfig): string {
@@ -149,10 +161,15 @@ export function readStatusSnapshot(config: BodhiConfig): StatusSnapshot {
 export async function waitForHealth(
 	runtime: RuntimeHealthProbe,
 	config: BodhiConfig,
+	pid?: number,
 ): Promise<HealthResponse> {
 	const deadline = Date.now() + START_TIMEOUT_MS;
 	let lastError: string | null = null;
 	while (Date.now() < deadline) {
+		if (pid && !runtime.isProcessAlive(pid)) {
+			break;
+		}
+
 		try {
 			const response = await runtime.requestJson(config, "/health", { authenticated: false });
 			if (response.status === 200 || response.status === 503) {

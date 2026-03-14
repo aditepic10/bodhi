@@ -52,7 +52,11 @@ export interface CliRuntime {
 	): Promise<void>;
 	sleep(ms: number): Promise<void>;
 	signalProcess(pid: number, signal: NodeJS.Signals): void;
-	spawnDaemon(): { pid: number | undefined; unref(): void };
+	spawnDaemon(config: BodhiConfig): {
+		pid: number | undefined;
+		startupLogPath?: string;
+		unref(): void;
+	};
 	stderr: WritableLike;
 	stdout: WritableLike;
 }
