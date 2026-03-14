@@ -2,6 +2,8 @@
 
 This file is the in-repo map of the product and extension scenarios the architecture is intended to support.
 
+The full imported catalog of 77 use cases lives in [docs/use-cases/full-catalog.md](./docs/use-cases/full-catalog.md). Use that file when roadmap planning needs the original stress-test detail. Use this file for the shorter architectural summary.
+
 ## Native Today
 
 - Recall recent shell activity through `bodhi recall`
@@ -28,6 +30,7 @@ These should be additive, not architectural rewrites:
 The current design is specifically intended to absorb:
 - multiple capture sources feeding the same append-only log
 - asynchronous intelligence that can fail independently of ingestion
+- developer context dimensions such as repo root, worktree, branch, session, and thread
 - future structured metrics and dashboards
 - richer search modes without discarding FTS5
 - transport reuse across CLI, future web UI, and MCP exposure
@@ -35,10 +38,12 @@ The current design is specifically intended to absorb:
 ## Current Gaps
 
 These are known follow-on areas, not architecture failures:
-- large implementation files that need seam-preserving refactors
+- richer local capture breadth before the killer workflows are credible
+- a developer activity model that consistently carries repo, worktree, branch, and session context
+- explicit privacy rules for transcript capture and bounded output capture
 - operational work such as log rotation, backups, and service install
 - more explicit status and metrics sharing between API and CLI
-- fuller use-case catalog import from the architecture plan
+- mapping the imported use-case catalog onto capture, retrieval, analytics, scheduling, and integration work
 
 ## How To Use This File
 
