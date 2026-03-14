@@ -42,16 +42,16 @@ If `bodhi` is not found after linking, add `~/.bun/bin` to `PATH`.
 
 ## Repo Guide
 
-- [ARCHITECTURE.md](/Users/aditpareek/Documents/bodhi/ARCHITECTURE.md): system overview, invariants, module boundaries, extension seams
-- [ROADMAP.md](/Users/aditpareek/Documents/bodhi/ROADMAP.md): post-MVP roadmap and operational work
-- [USE_CASES.md](/Users/aditpareek/Documents/bodhi/USE_CASES.md): extension and product use-case map
-- [docs/testing.md](/Users/aditpareek/Documents/bodhi/docs/testing.md): workflow-testing policy and verification expectations
-- [docs/adr/README.md](/Users/aditpareek/Documents/bodhi/docs/adr/README.md): ADR index and template
-- [AGENTS.md](/Users/aditpareek/Documents/bodhi/AGENTS.md): concise contributor/agent rules
+- [ARCHITECTURE.md](./ARCHITECTURE.md): system overview, invariants, module boundaries, extension seams
+- [ROADMAP.md](./ROADMAP.md): post-MVP roadmap and operational work
+- [USE_CASES.md](./USE_CASES.md): extension and product use-case map
+- [docs/testing.md](./docs/testing.md): workflow-testing policy and verification expectations
+- [docs/adr/README.md](./docs/adr/README.md): ADR index and template
+- [AGENTS.md](./AGENTS.md): concise contributor/agent rules
 
 ## Working Agreement
 
-- Preserve the seven architectural invariants documented in [ARCHITECTURE.md](/Users/aditpareek/Documents/bodhi/ARCHITECTURE.md).
+- Preserve the seven architectural invariants documented in [ARCHITECTURE.md](./ARCHITECTURE.md).
 - Test workflows, not methods. Use real SQLite and real pipeline/store code.
 - Keep the hot path synchronous and non-LLM-bound; keep intelligence on the cold path.
 - Add architecture decisions to `docs/adr/` when the repo makes a meaningful tradeoff.

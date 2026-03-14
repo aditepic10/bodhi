@@ -95,20 +95,20 @@ The tightest coupling today is the SQLite layer. That is acceptable because SQLi
 
 ## Maintainability Notes
 
-The current codebase is maintainable because the boundaries are real, but several large files should eventually be split along their existing seams:
+The current codebase is maintainable because the boundaries are real, and the main runtime seams are now split into folder-backed modules:
 
-- `packages/daemon/src/cli.ts`
-- `packages/daemon/src/lifecycle.ts`
-- `packages/daemon/src/store/sqlite.ts`
+- `packages/daemon/src/cli/`
+- `packages/daemon/src/lifecycle/`
+- `packages/daemon/src/store/sqlite/`
 
-Those refactors should stay behavior-preserving and should not change external contracts.
+Future refactors should stay behavior-preserving and should not change external contracts.
 
 ## Start Here
 
 New contributors should read in this order:
 
-1. [README.md](/Users/aditpareek/Documents/bodhi/README.md)
-2. [ARCHITECTURE.md](/Users/aditpareek/Documents/bodhi/ARCHITECTURE.md)
-3. [docs/testing.md](/Users/aditpareek/Documents/bodhi/docs/testing.md)
-4. [docs/adr/README.md](/Users/aditpareek/Documents/bodhi/docs/adr/README.md)
-5. [ROADMAP.md](/Users/aditpareek/Documents/bodhi/ROADMAP.md)
+1. [README.md](./README.md)
+2. [ARCHITECTURE.md](./ARCHITECTURE.md)
+3. [docs/testing.md](./docs/testing.md)
+4. [docs/adr/README.md](./docs/adr/README.md)
+5. [ROADMAP.md](./ROADMAP.md)
