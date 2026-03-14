@@ -22,7 +22,6 @@ Week 1 MVP is complete:
 - typed relational event storage
 - shared activity context model
 - Drizzle-first migration baseline
-- `import-history` for day-one value
 - repo- and branch-scoped retrieval
 
 ## Non-Goals Right Now
@@ -39,25 +38,48 @@ Week 1 MVP is complete:
 - Advanced intelligence features depend on the current hot/cold path separation staying intact.
 - New clients depend on the Unix socket API and SSE contracts remaining explicit and tested.
 
-## Week 2
+## Phase 2
 
-Foundation:
+Typed substrate and scoped retrieval:
 - typed relational storage on `events` + `event_contexts` + child tables
 - Drizzle migration baseline and runtime migration path
 - `ActivityContext` on event envelopes
 - shell context enrichment
-- `import-history`
 - FTS on derived `search_text`
-
-## Week 3
-
-Capture and retrieval:
 - repo- and branch-scoped retrieval filters
-- richer git capture: commits, checkout, merge, rewrite
-- terminal AI capture: prompts and tool calls
-- intel pre-filter for low-signal activity
 
-## Week 4
+## Phase 3
+
+Git lifecycle capture:
+- authoritative git events from hooks:
+  - `git.commit.created`
+  - `git.checkout`
+  - `git.merge`
+  - `git.rewrite`
+- richer commit metadata:
+  - file paths
+  - insertions/deletions
+  - commit ancestry signals where useful
+- real workflow tests with temp repos, worktrees, merges, rebases, and detached `HEAD`
+
+## Phase 4
+
+Terminal AI capture:
+- prompt capture as typed `ai.prompt` events
+- tool-call capture as typed `ai.tool_call` events
+- no raw assistant transcript storage by default
+- shared repo/branch/worktree/tool/thread context on AI events
+
+## Phase 5
+
+Retrieval and intel quality:
+- improve ranking across shell, git, and AI events
+- tighten repo/branch/tool/thread-aware retrieval behavior
+- intel pre-filter for low-signal activity
+- fact extraction quality improvements for git and AI activity
+- maintain bounded retrieval and hot/cold path separation
+
+## Phase 6
 
 First workflows:
 - `bodhi standup`
@@ -65,6 +87,7 @@ First workflows:
 - facts review workflow
 - export path
 - `bodhi doctor` improvements
+- `import-history` when it strengthens day-one usefulness without distracting from core capture
 
 ## Week 5+
 
@@ -106,7 +129,8 @@ Operational hardening and extensions:
 
 ## Suggested Next Work
 
-1. Land the typed storage and migration foundation.
-2. Make repo and branch first-class retrieval dimensions.
-3. Add the minimum richer capture needed for credible standup and resume workflows.
-4. Harden operations after the substrate and workflows are proven.
+1. Finish Git lifecycle capture as the first authoritative post-shell signal layer.
+2. Add terminal AI prompts and tool calls as the next major intent signal.
+3. Improve retrieval and intel quality before packaging workflows.
+4. Build `standup` and `resume` only after shell + git + AI capture are flowing together.
+5. Harden operations after the substrate and workflows are proven.

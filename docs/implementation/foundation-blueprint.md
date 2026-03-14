@@ -7,7 +7,6 @@ This document is the implementation blueprint for Bodhi's typed activity substra
 Build the storage and capture foundation required for:
 
 - repo- and branch-scoped recall
-- day-one value through `import-history`
 - richer git and terminal-AI capture
 - workflow-grade `standup` and `resume`
 
@@ -148,11 +147,97 @@ Build the storage and capture foundation required for:
 5. store decomposition and hydration
 6. retrieval and agent rendering updates
 7. shell context enrichment
-8. `import-history`
-9. git lifecycle capture
-10. Claude Code capture
+8. git lifecycle capture
+9. terminal AI prompt and tool-call capture
+10. retrieval and intel quality pass
 11. `standup`
 12. `resume` and fact review
+13. `import-history` when it improves first-run usefulness without delaying core capture quality
+
+## Next Capture Plan
+
+### Git lifecycle capture
+
+Authoritative events should come from Git hooks, not shell parsing:
+
+- `post-commit` -> `git.commit.created`
+- `post-checkout` -> `git.checkout`
+- `post-merge` -> `git.merge`
+- `post-rewrite` -> `git.rewrite`
+
+Initial git payload scope:
+
+- `git.commit.created`
+  - commit SHA
+  - message
+  - file paths in `git_commit_files`
+  - `files_changed`
+  - `insertions`
+  - `deletions`
+- `git.checkout`
+  - `from_sha`
+  - `to_sha`
+  - `from_branch?`
+  - `to_branch?`
+  - `checkout_kind`
+- `git.merge`
+  - merge commit SHA
+  - parent count
+  - squash flag
+- `git.rewrite`
+  - rewrite type
+  - rewritten commit count
+  - old/new rewrite mappings if needed for archaeology
+
+Shared context should be populated on every git event:
+
+- `repo_id`
+- `worktree_root`
+- `branch`
+- `head_sha`
+- `git_state`
+- `cwd`
+- `relative_cwd`
+- `tool = "git.hook"`
+
+Git workflow validation should cover:
+
+- normal commit creation
+- branch switches
+- worktree creation and activity inside the worktree
+- merge completion
+- amend
+- rebase
+- detached `HEAD`
+
+### Terminal AI capture
+
+This is the next capture phase after Git, not a parallel distraction.
+
+Initial AI payload scope:
+
+- `ai.prompt`
+  - user-authored prompt text
+- `ai.tool_call`
+  - tool name
+  - target
+  - optional short description
+
+Constraints:
+
+- no raw assistant transcript storage by default
+- retain shared repo/branch/worktree/tool/thread context
+- optimize for intent and actions, not transcript exhaust
+
+### Retrieval and intel quality
+
+Do this before packaging workflows:
+
+- improve ranking across shell, git, and AI evidence
+- ensure repo/branch/tool/thread filters remain structural
+- add low-signal intel pre-filtering
+- improve extraction prompts for git and AI activity
+- keep retrieval bounded and deterministic
 
 ## Workflow Validation Gates
 
@@ -180,7 +265,6 @@ Required workflow suites:
   - bounded time-window plus repo or branch filters
 - capture workflows
   - shell hooks add context in git repos and omit it safely outside repos
-  - history import uses the same ingest path as live events
   - git and AI hook payloads map to the expected typed events
 - end-to-end workflows
   - shell + git + AI capture support `standup`
@@ -207,6 +291,7 @@ Not part of this foundation pass:
 
 These remain useful and are intentionally preserved even though they are not part of the immediate substrate rewrite:
 
+- `import-history` for day-one value
 - terminal output capture policy with truncation, redaction, and opt-in controls
 - extraction metadata
 - semantic fact conflict resolution
