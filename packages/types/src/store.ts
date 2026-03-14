@@ -22,6 +22,7 @@ export interface Store {
 	getEvents(filter?: EventFilter): Promise<StoredEvent[]>;
 	searchEvents(query: string, limit?: number): Promise<StoredEvent[]>;
 	getUnprocessedEvents(limit?: number): Promise<StoredEvent[]>;
+	markStarted(id: string): Promise<void>;
 	markProcessed(id: string): Promise<void>;
 
 	insertFact(fact: Omit<Fact, "id" | "created_at" | "updated_at">): Promise<Fact>;

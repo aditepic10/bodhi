@@ -16,6 +16,7 @@ import { nowUnix } from "./schema.sql";
 
 const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 1000;
+const INTEL_VISIBILITY_TIMEOUT_SECONDS = 5 * 60;
 
 type StoredEventRow = {
 	id: string;
@@ -379,16 +380,20 @@ export function createStore(db: Database, options: CreateStoreOptions = {}): Sql
 		},
 		async getUnprocessedEvents(limit?: number) {
 			return db
-				.query<StoredEventRow, [number]>(
+				.query<StoredEventRow, [number, number]>(
 					`
 						SELECT * FROM events
 						WHERE processed_at IS NULL
+						AND (started_at IS NULL OR started_at <= ?)
 						ORDER BY created_at ASC, _rowid ASC
 						LIMIT ?
 					`,
 				)
-				.all(clampLimit(limit))
+				.all(nowUnix() - INTEL_VISIBILITY_TIMEOUT_SECONDS, clampLimit(limit))
 				.map(mapStoredEvent);
+		},
+		async markStarted(id: string) {
+			db.query(`UPDATE events SET started_at = ? WHERE id = ?`).run(nowUnix(), id);
 		},
 		async markProcessed(id: string) {
 			db.query(`UPDATE events SET processed_at = ?, started_at = NULL WHERE id = ?`).run(
