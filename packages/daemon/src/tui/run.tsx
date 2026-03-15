@@ -1,13 +1,10 @@
-import { render } from "ink";
-import React from "react";
+import { createCliRenderer } from "@opentui/core";
+import { createRoot } from "@opentui/react";
 import { writeLine } from "../cli/helpers";
 import type { CliRuntime } from "../cli/types";
 import { BodhiTuiApp } from "./app";
 import { loadTuiConfig } from "./config";
 import { resolveTuiTheme } from "./theme";
-
-const ENTER_ALT_SCREEN = "\u001B[?1049h";
-const EXIT_ALT_SCREEN = "\u001B[?1049l";
 
 function writeResumeHint(runtime: CliRuntime, sessionId: string | null): void {
 	if (!sessionId) {
@@ -27,34 +24,33 @@ export async function runTui(
 	const tuiConfig = loadTuiConfig(bodhiConfig);
 	const theme = resolveTuiTheme(tuiConfig);
 	let sessionId = options.resumeSessionId ?? null;
-	runtime.stdout.write(ENTER_ALT_SCREEN);
-	const instance = render(
-		React.createElement(BodhiTuiApp, {
-			config: tuiConfig,
-			onSessionChange(nextSessionId: string) {
+
+	const renderer = await createCliRenderer({
+		exitOnCtrlC: false,
+		useMouse: true,
+		useAlternateScreen: true,
+	});
+
+	createRoot(renderer).render(
+		<BodhiTuiApp
+			config={tuiConfig}
+			onSessionChange={(nextSessionId: string) => {
 				sessionId = nextSessionId;
-			},
-			resumeSessionId: options.resumeSessionId,
-			runtime,
-			theme,
-		}),
-		{
-			exitOnCtrlC: false,
-			incrementalRendering: false,
-			maxFps: 30,
-			patchConsole: false,
-			stderr: process.stderr,
-			stdin: process.stdin,
-			stdout: process.stdout,
-		},
+			}}
+			resumeSessionId={options.resumeSessionId}
+			runtime={runtime}
+			theme={theme}
+		/>,
 	);
 
+	renderer.start();
+
 	try {
-		await instance.waitUntilExit();
+		await new Promise<void>((resolve) => {
+			renderer.on("destroy", resolve);
+		});
 		return 0;
 	} finally {
-		instance.cleanup();
-		runtime.stdout.write(EXIT_ALT_SCREEN);
 		writeResumeHint(runtime, sessionId);
 	}
 }

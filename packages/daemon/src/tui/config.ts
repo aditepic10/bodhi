@@ -6,6 +6,7 @@ import { z } from "zod";
 export const TuiThemeNameSchema = z.enum(["dark"]);
 export const TuiDensitySchema = z.enum(["comfortable", "compact"]);
 export const TuiMotionSchema = z.enum(["full", "reduced", "none"]);
+export type TuiMotion = z.infer<typeof TuiMotionSchema>;
 
 export const TuiConfigSchema = z.object({
 	density: TuiDensitySchema.default("comfortable"),

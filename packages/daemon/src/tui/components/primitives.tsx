@@ -1,5 +1,6 @@
-import { Box, Text } from "ink";
 import type { PropsWithChildren } from "react";
+import { useEffect, useState } from "react";
+import type { TuiMotion } from "../config";
 import type { TuiTheme } from "../theme";
 
 interface SurfaceProps extends PropsWithChildren {
@@ -25,53 +26,47 @@ export function Surface({
 	title,
 }: SurfaceProps) {
 	return (
-		<Box
+		<box
 			borderColor={bordered ? (borderColor ?? theme.border) : undefined}
-			borderStyle={bordered ? "round" : undefined}
+			borderStyle={bordered ? "rounded" : undefined}
 			flexDirection="column"
 			width={fillWidth ? "100%" : undefined}
 			paddingX={paddingX}
 			paddingY={paddingY}
 		>
 			{title ? (
-				<Box marginBottom={compact ? 0 : 1}>
-					<Text bold color={theme.muted}>
-						{title}
-					</Text>
-				</Box>
+				<box marginBottom={compact ? 0 : 1}>
+					<text fg={theme.muted}>{title}</text>
+				</box>
 			) : null}
 			{children}
-		</Box>
+		</box>
 	);
 }
 
 export function Divider(props: { theme: TuiTheme; width: number }) {
-	return <Text color={props.theme.separator}>{"─".repeat(Math.max(1, props.width))}</Text>;
+	return <text fg={props.theme.separator}>{"─".repeat(Math.max(1, props.width))}</text>;
 }
 
 export function Badge(props: { color: string; label: string }) {
-	return (
-		<Text bold color={props.color}>
-			[{props.label}]
-		</Text>
-	);
+	return <text fg={props.color}>[{props.label}]</text>;
 }
 
 export function EmptyState(props: { message: string; theme: TuiTheme }) {
 	return (
-		<Box>
-			<Text color={props.theme.dim}>○ </Text>
-			<Text color={props.theme.muted}>{props.message}</Text>
-		</Box>
+		<box flexDirection="row">
+			<text fg={props.theme.dim}>○ </text>
+			<text fg={props.theme.muted}>{props.message}</text>
+		</box>
 	);
 }
 
 export function LoadingState(props: { message: string; theme: TuiTheme }) {
 	return (
-		<Box>
-			<Text color={props.theme.accent}>··· </Text>
-			<Text color={props.theme.text}>{props.message}</Text>
-		</Box>
+		<box flexDirection="row">
+			<text fg={props.theme.accent}>··· </text>
+			<text fg={props.theme.text}>{props.message}</text>
+		</box>
 	);
 }
 
@@ -87,21 +82,36 @@ export function Notice(props: {
 				? props.theme.success
 				: props.theme.accent;
 	return (
-		<Box>
-			<Text color={color}>▎ </Text>
-			<Text color={color}>{props.message}</Text>
-		</Box>
+		<box flexDirection="row">
+			<text fg={color}>▎ </text>
+			<text fg={color}>{props.message}</text>
+		</box>
 	);
 }
 
-export function ThinkingState(props: { active: boolean; theme: TuiTheme }) {
+const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+export function ThinkingState(props: { active: boolean; motion?: TuiMotion; theme: TuiTheme }) {
+	const [frame, setFrame] = useState(0);
+	const motion = props.motion ?? "full";
+
+	useEffect(() => {
+		if (!props.active || motion === "none") return;
+		const ms = motion === "reduced" ? 400 : 80;
+		const id = setInterval(() => setFrame((f) => (f + 1) % SPINNER.length), ms);
+		return () => clearInterval(id);
+	}, [props.active, motion]);
+
 	if (!props.active) {
 		return null;
 	}
 
+	const glyph = motion === "none" ? "▪" : (SPINNER[frame % SPINNER.length] ?? "⠋");
+
 	return (
-		<Box>
-			<Text color={props.theme.dim}>··· breathing in context…</Text>
-		</Box>
+		<box flexDirection="row">
+			<text fg={props.theme.statusStreaming}>{glyph} </text>
+			<text fg={props.theme.dim}>thinking</text>
+		</box>
 	);
 }

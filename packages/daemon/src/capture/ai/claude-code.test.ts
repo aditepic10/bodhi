@@ -51,9 +51,10 @@ describe("claude code capture", () => {
 		uninstallClaudeCodeHooks(settingsPath);
 		const removed = readFileSync(settingsPath, "utf8");
 
-		expect(installed.match(/bodhi internal ai-capture claude-code/g)?.length).toBe(2);
+		expect(installed.match(/internal ai-capture claude-code/g)?.length).toBe(2);
+		expect(installed).toContain(">/dev/null 2>&1 || true");
 		expect(removed).toContain("echo existing");
-		expect(removed).not.toContain("bodhi internal ai-capture claude-code");
+		expect(removed).not.toContain("internal ai-capture claude-code");
 	});
 
 	test("maps prompt hooks into ai.prompt without transcript storage", () => {

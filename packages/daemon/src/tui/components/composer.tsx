@@ -1,73 +1,79 @@
-import { Box, Text } from "ink";
-import type { ComposerState } from "../state";
+import type { KeyBinding, TextareaRenderable } from "@opentui/core";
+import { useCallback, useEffect, useRef } from "react";
 import type { TuiTheme } from "../theme";
 
-function renderWithCursor(text: string, cursor: number, theme: TuiTheme) {
-	const chars = Array.from(text);
-	const pos = Math.min(cursor, chars.length);
-	const before = chars.slice(0, pos).join("");
-	const cursorChar = chars[pos] ?? " ";
-	const after = chars.slice(pos + 1).join("");
+// Key name is "return" not "enter" — defaultKeyAliases maps enter→return.
+// Enter submits, Shift+Enter and Meta+Enter insert newlines.
+const composerKeyBindings: KeyBinding[] = [
+	{ name: "return", action: "submit" },
+	{ name: "return", shift: true, action: "newline" },
+	{ name: "return", meta: true, action: "newline" },
+];
+
+export interface ComposerRef {
+	clear: () => void;
+	getText: () => string;
+}
+
+export function Composer(props: {
+	focused: boolean;
+	onSubmit: (text: string) => void;
+	streaming: boolean;
+	theme: TuiTheme;
+}) {
+	const textareaRef = useRef<TextareaRenderable>(null);
+	const onSubmitRef = useRef(props.onSubmit);
+	onSubmitRef.current = props.onSubmit;
+
+	const handleSubmit = useCallback(() => {
+		const textarea = textareaRef.current;
+		if (!textarea) return;
+		const text = textarea.getTextRange(0, 999999).trim();
+		if (!text) return;
+		textarea.clear();
+		onSubmitRef.current(text);
+	}, []);
+
+	// Wire onSubmit imperatively — React reconciler doesn't forward it for textarea.
+	useEffect(() => {
+		const textarea = textareaRef.current;
+		if (textarea) {
+			textarea.onSubmit = handleSubmit;
+		}
+	}, [handleSubmit]);
 
 	return (
-		<Text>
-			<Text color={theme.text}>{before}</Text>
-			<Text backgroundColor={theme.accent} color={theme.background}>
-				{cursorChar}
-			</Text>
-			<Text color={theme.text}>{after}</Text>
-		</Text>
+		<box
+			width="100%"
+			flexShrink={0}
+			borderStyle="rounded"
+			borderColor={
+				props.streaming
+					? props.theme.statusStreaming
+					: props.focused
+						? props.theme.accent
+						: props.theme.border
+			}
+			backgroundColor={props.theme.panel}
+		>
+			<textarea
+				ref={textareaRef}
+				focused={props.focused}
+				width="100%"
+				wrapMode="word"
+				placeholder="Ask anything…"
+				placeholderColor={props.theme.dim}
+				textColor={props.theme.text}
+				backgroundColor={props.theme.panel}
+				focusedBackgroundColor={props.theme.panel}
+				focusedTextColor={props.theme.text}
+				keyBindings={composerKeyBindings}
+			/>
+		</box>
 	);
 }
 
-export function Composer(props: { composer: ComposerState; streaming: boolean; theme: TuiTheme }) {
-	const hasValue = props.composer.text.length > 0;
-
-	if (!hasValue) {
-		return (
-			<Box flexDirection="column">
-				<Box>
-					<Text color={props.theme.accent}>{"❯ "}</Text>
-					<Text color={props.theme.dim}>Ask Bodhi anything about your work…</Text>
-				</Box>
-				<Text color={props.theme.dim}>
-					{props.streaming
-						? "stream active · Ctrl+C to interrupt"
-						: "Enter to send · Shift+Enter for newline"}
-				</Text>
-			</Box>
-		);
-	}
-
-	const lines = props.composer.text.split("\n");
-	let charOffset = 0;
-
-	return (
-		<Box flexDirection="column">
-			{lines.map((line, lineIndex) => {
-				const lineStart = charOffset;
-				charOffset += Array.from(line).length + 1; // +1 for newline
-				const prompt = lineIndex === 0 ? "❯ " : "  ";
-				const cursorInLine =
-					props.composer.cursor >= lineStart &&
-					props.composer.cursor <= lineStart + Array.from(line).length;
-
-				return (
-					<Box key={`line-${lineStart}`}>
-						<Text color={props.theme.accent}>{prompt}</Text>
-						{cursorInLine ? (
-							renderWithCursor(line, props.composer.cursor - lineStart, props.theme)
-						) : (
-							<Text color={props.theme.text}>{line}</Text>
-						)}
-					</Box>
-				);
-			})}
-			<Text color={props.theme.dim}>
-				{props.streaming
-					? "stream active · Ctrl+C to interrupt"
-					: "Enter to send · Shift+Enter for newline"}
-			</Text>
-		</Box>
-	);
+/** Read text from a textarea ref without going through state. */
+export function getComposerText(ref: React.RefObject<TextareaRenderable | null>): string {
+	return ref.current?.getTextRange(0, 999999) ?? "";
 }

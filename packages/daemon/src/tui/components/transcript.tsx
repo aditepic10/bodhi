@@ -1,31 +1,30 @@
-import { Box, Text } from "ink";
+import type { TuiMotion } from "../config";
 import { renderTranscriptEntry } from "../renderers/registry";
 import type { TranscriptEntry } from "../state";
 import type { TuiTheme } from "../theme";
-import { EmptyState, Notice, ThinkingState } from "./primitives";
+import { Notice, ThinkingState } from "./primitives";
+import { WelcomeState } from "./welcome";
 
 export function Transcript(props: {
-	clippedAbove: number;
-	clippedBelow: number;
 	error: string | null;
 	entries: TranscriptEntry[];
+	motion?: TuiMotion;
 	streaming: boolean;
 	theme: TuiTheme;
 }) {
 	if (props.entries.length === 0) {
-		return (
-			<EmptyState
-				message="A new session is open. Ask about your work, context, or what Bodhi should remember."
-				theme={props.theme}
-			/>
-		);
+		return <WelcomeState theme={props.theme} />;
 	}
 
+	const lastEntry = props.entries[props.entries.length - 1];
+	const showCompletion =
+		!props.streaming &&
+		lastEntry &&
+		(lastEntry.role === "assistant" || lastEntry.role === "tool") &&
+		lastEntry.status === "complete";
+
 	return (
-		<Box flexDirection="column">
-			{props.clippedAbove > 0 ? (
-				<Text color={props.theme.dim}>↑ {props.clippedAbove} above</Text>
-			) : null}
+		<box flexDirection="column">
 			{props.entries.map((entry, index) => {
 				const nextEntry = props.entries[index + 1];
 				const isToolRow = entry.role === "tool";
@@ -33,20 +32,22 @@ export function Transcript(props: {
 				const marginAfter =
 					index === props.entries.length - 1 ? 0 : isToolRow || nextIsTool ? 0 : 1;
 				return (
-					<Box key={entry.id} flexDirection="column" marginBottom={marginAfter}>
+					<box key={entry.id} flexDirection="column" marginBottom={marginAfter}>
 						{renderTranscriptEntry(entry, props.theme)}
-					</Box>
+					</box>
 				);
 			})}
-			{props.clippedBelow > 0 ? (
-				<Text color={props.theme.dim}>↓ {props.clippedBelow} below</Text>
-			) : null}
-			<ThinkingState active={props.streaming} theme={props.theme} />
+			<ThinkingState
+				active={props.streaming && !props.entries.some((e) => e.status === "streaming")}
+				motion={props.motion}
+				theme={props.theme}
+			/>
+			{showCompletion ? <text fg={props.theme.completionMark}>{"  ·"}</text> : null}
 			{props.error ? (
-				<Box marginTop={1}>
+				<box marginTop={1}>
 					<Notice kind="error" message={props.error} theme={props.theme} />
-				</Box>
+				</box>
 			) : null}
-		</Box>
+		</box>
 	);
 }

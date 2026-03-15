@@ -1,5 +1,6 @@
-import { Box, useApp, useInput } from "ink";
-import { useEffect, useMemo, useReducer, useRef } from "react";
+import type { TextareaRenderable } from "@opentui/core";
+import { useKeyboard, useRenderer } from "@opentui/react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import type { CliRuntime } from "../cli/types";
 import {
 	createChatSession,
@@ -8,24 +9,16 @@ import {
 	loadConversation,
 	streamChatTurn,
 } from "./client";
-import { CommandPalette, commandPaletteActions } from "./components/command-palette";
+import { CommandPalette } from "./components/command-palette";
 import { Composer } from "./components/composer";
 import { Header } from "./components/header";
 import { HelpOverlay } from "./components/help-overlay";
-import { Divider, LoadingState } from "./components/primitives";
+import { LoadingState } from "./components/primitives";
 import { SessionSwitcher } from "./components/session-switcher";
 import { StatusBar } from "./components/status-bar";
 import { Transcript } from "./components/transcript";
 import type { TuiConfig } from "./config";
-import { useTerminalSize } from "./hooks/use-terminal-size";
-import {
-	isCommandPaletteKey,
-	isHelpKey,
-	isInterruptKey,
-	isNewlineKey,
-	isOpenSessionsKey,
-	isSendKey,
-} from "./keybindings";
+import { handleTuiInput } from "./input-handler";
 import type { TuiOverlay } from "./state";
 import { createInitialTuiState, tuiReducer } from "./state";
 import type { TuiTheme } from "./theme";
@@ -91,10 +84,21 @@ function renderOverlay(
 }
 
 export function BodhiTuiApp(props: BodhiTuiAppProps) {
-	const { exit } = useApp();
+	const renderer = useRenderer();
 	const [state, dispatch] = useReducer(tuiReducer, undefined, createInitialTuiState);
 	const abortRef = useRef<AbortController | null>(null);
-	const terminal = useTerminalSize();
+	const textareaRef = useRef<TextareaRenderable>(null);
+	const [composerFocused, setComposerFocused] = useState(true);
+
+	const cleanExit = useCallback(
+		(data?: unknown) => {
+			renderer.destroy();
+			if (data && typeof data === "object" && "sessionId" in data) {
+				// Session ID will be picked up by run.tsx via onSessionChange
+			}
+		},
+		[renderer],
+	);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -120,31 +124,6 @@ export function BodhiTuiApp(props: BodhiTuiAppProps) {
 			cancelled = true;
 		};
 	}, [props.resumeSessionId, props.runtime, props.onSessionChange]);
-
-	const { clippedAbove, clippedBelow, visibleEntries } = useMemo(() => {
-		const maxEntries = Math.max(8, terminal.rows - 6);
-		const total = state.transcript.length;
-		const offset = state.scrollOffset;
-
-		if (offset <= 0 || total <= maxEntries) {
-			// At bottom (default) — show last maxEntries
-			const entries = state.transcript.slice(-maxEntries);
-			return {
-				clippedAbove: total - entries.length,
-				clippedBelow: 0,
-				visibleEntries: entries,
-			};
-		}
-
-		// Scrolled up — show window offset from the end
-		const endIndex = Math.max(maxEntries, total - offset);
-		const startIndex = Math.max(0, endIndex - maxEntries);
-		return {
-			clippedAbove: startIndex,
-			clippedBelow: total - endIndex,
-			visibleEntries: state.transcript.slice(startIndex, endIndex),
-		};
-	}, [state.transcript, state.scrollOffset, terminal.rows]);
 
 	const refreshSessions = async () => {
 		try {
@@ -186,18 +165,17 @@ export function BodhiTuiApp(props: BodhiTuiAppProps) {
 		}
 	};
 
-	const sendMessage = async () => {
+	const sendMessage = async (text: string) => {
 		if (state.isStreaming || !state.session) {
 			return;
 		}
 
-		const message = state.composer.text.trim();
+		const message = text.trim();
 		if (!message) {
 			return;
 		}
 
 		dispatch({ message, type: "append-user-message" });
-		dispatch({ type: "clear-composer" });
 		dispatch({ type: "start-stream" });
 
 		const abortController = new AbortController();
@@ -226,173 +204,87 @@ export function BodhiTuiApp(props: BodhiTuiAppProps) {
 		}
 	};
 
-	useInput((input, key) => {
-		if (isInterruptKey(input, key)) {
-			if (state.isStreaming) {
-				abortRef.current?.abort();
-				return;
-			}
-			exit({ sessionId: state.session?.session_id });
+	// Global keyboard handler for shortcuts that apply regardless of focus.
+	useKeyboard((key) => {
+		// Tab toggles focus between transcript and composer
+		if (key.name === "tab") {
+			setComposerFocused((prev) => !prev);
 			return;
 		}
 
-		if (state.overlay !== "none") {
-			if (key.escape) {
-				dispatch({ type: "close-overlay" });
-				return;
-			}
-			if (key.upArrow) {
-				dispatch({ delta: -1, type: "move-overlay-selection" });
-				return;
-			}
-			if (key.downArrow) {
-				dispatch({ delta: 1, type: "move-overlay-selection" });
-				return;
-			}
-			if (key.return) {
-				if (state.overlay === "sessions") {
-					const selected = state.sessions[state.selectedOverlayIndex];
-					if (selected && !state.isStreaming) {
-						void switchToSession(selected.session_id);
-					}
-					return;
-				}
-				if (state.overlay === "commands") {
-					const action = commandPaletteActions[state.selectedOverlayIndex];
-					if (!action) {
-						return;
-					}
-					if (action.id === "sessions") {
-						void refreshSessions().then(() => {
-							dispatch({ overlay: "sessions", type: "open-overlay" });
-						});
-						return;
-					}
-					if (action.id === "help") {
-						dispatch({ overlay: "help", type: "open-overlay" });
-						return;
-					}
-					exit({ sessionId: state.session?.session_id });
-				}
-			}
-			return;
-		}
+		const composerText = textareaRef.current?.getTextRange(0, 999999) ?? "";
+		const composerEmpty = composerText.trim().length === 0;
 
-		if (isOpenSessionsKey(input, key)) {
-			void refreshSessions().then(() => {
-				dispatch({ overlay: "sessions", type: "open-overlay" });
-			});
-			return;
-		}
-		if (isHelpKey(input, key, state.composer.text.trim().length === 0)) {
-			dispatch({ overlay: "help", type: "open-overlay" });
-			return;
-		}
-		if (key.escape) {
-			// Dismiss error on Esc if one is showing
-			if (state.error) {
-				dispatch({ error: null, type: "set-error" });
-			}
-			dispatch({ type: "close-overlay" });
-			return;
-		}
-		if (isCommandPaletteKey(input, key, state.composer.text.trim().length === 0)) {
-			dispatch({ overlay: "commands", type: "open-overlay" });
-			return;
-		}
-		if (isSendKey(key)) {
-			void sendMessage();
-			return;
-		}
-		if (isNewlineKey(key)) {
-			dispatch({ value: "\n", type: "append-composer" });
-			return;
-		}
-		// Cursor movement
-		if (key.leftArrow && !key.ctrl && !key.meta) {
-			dispatch({ type: "composer-cursor-left" });
-			return;
-		}
-		if (key.rightArrow && !key.ctrl && !key.meta) {
-			dispatch({ type: "composer-cursor-right" });
-			return;
-		}
-		// Ctrl+A — home
-		if (key.ctrl && input.toLowerCase() === "a") {
-			dispatch({ type: "composer-cursor-home" });
-			return;
-		}
-		// Ctrl+E — end
-		if (key.ctrl && input.toLowerCase() === "e") {
-			dispatch({ type: "composer-cursor-end" });
-			return;
-		}
-		// Ctrl+K — kill to end of line
-		if (key.ctrl && input.toLowerCase() === "k") {
-			dispatch({ type: "composer-kill-to-end" });
-			return;
-		}
-		// Ctrl+W — delete word back
-		if (key.ctrl && input.toLowerCase() === "w") {
-			dispatch({ type: "composer-delete-word-back" });
-			return;
-		}
-		// Up/down arrow for transcript scrolling (only when no overlay)
-		if (key.upArrow) {
-			dispatch({ delta: 3, type: "scroll-transcript" });
-			return;
-		}
-		if (key.downArrow) {
-			dispatch({ delta: -3, type: "scroll-transcript" });
-			return;
-		}
-		if (key.backspace || key.delete) {
-			dispatch({ type: "trim-composer" });
-			return;
-		}
-		if (input.length > 0 && !key.ctrl && !key.meta) {
-			dispatch({ value: input, type: "append-composer" });
-		}
+		handleTuiInput(key, state, composerEmpty, composerFocused, {
+			abort: () => abortRef.current?.abort(),
+			dispatch,
+			exit: cleanExit,
+			refreshSessions,
+			sendMessage: async () => {
+				if (textareaRef.current) {
+					const text = textareaRef.current.getTextRange(0, 999999).trim();
+					textareaRef.current.clear();
+					await sendMessage(text);
+				}
+			},
+			switchToSession,
+		});
 	});
 
 	if (!state.session && state.status === "initializing") {
 		return (
-			<Box flexDirection="column" paddingX={1}>
+			<box flexDirection="column" paddingX={1}>
 				<LoadingState message="Connecting…" theme={props.theme} />
-			</Box>
+			</box>
 		);
 	}
 
 	const overlay: TuiOverlay = state.overlay;
 	const overlayContent = renderOverlay(overlay, state, props.theme);
-	const statusLabel =
-		state.status === "streaming"
-			? "thinking"
-			: state.status === "error"
-				? "error"
-				: state.status === "initializing"
-					? "preparing"
-					: "ready";
 
 	return (
-		<Box flexDirection="column" paddingX={1}>
-			<Header session={state.session} theme={props.theme} />
-			<Box flexDirection="column" flexGrow={1} marginTop={1}>
+		<box flexDirection="column" width="100%" height="100%">
+			<box height={1} paddingX={1}>
+				<Header session={state.session} theme={props.theme} />
+			</box>
+
+			{/* Transcript ScrollBox — handles mouse + keyboard scroll natively */}
+			<scrollbox
+				scrollY={true}
+				stickyScroll={true}
+				stickyStart="bottom"
+				focused={!composerFocused}
+				flexGrow={1}
+				width="100%"
+				borderStyle="rounded"
+				borderColor={!composerFocused ? props.theme.accent : props.theme.border}
+				backgroundColor={props.theme.background}
+			>
 				<Transcript
-					clippedAbove={clippedAbove}
-					clippedBelow={clippedBelow}
-					entries={visibleEntries}
+					entries={state.transcript}
 					error={overlay === "none" ? state.error : null}
+					motion={props.config.motion}
 					streaming={state.isStreaming}
 					theme={props.theme}
 				/>
-			</Box>
-			{overlayContent ? <Box marginTop={1}>{overlayContent}</Box> : null}
-			<Divider theme={props.theme} width={terminal.columns - 4} />
-			<Composer composer={state.composer} streaming={state.isStreaming} theme={props.theme} />
+			</scrollbox>
+
+			{overlayContent ? <box marginTop={1}>{overlayContent}</box> : null}
+
+			{/* Composer textarea */}
+			<Composer
+				focused={composerFocused}
+				onSubmit={(text) => void sendMessage(text)}
+				streaming={state.isStreaming}
+				theme={props.theme}
+			/>
+
+			{/* Status bar */}
 			{props.config.show_status_bar ? (
-				<StatusBar sessionCount={state.sessions.length} status={statusLabel} theme={props.theme} />
+				<box height={1} paddingX={1}>
+					<StatusBar motion={props.config.motion} status={state.status} theme={props.theme} />
+				</box>
 			) : null}
-		</Box>
+		</box>
 	);
 }

@@ -1,4 +1,3 @@
-import { Box, Text } from "ink";
 import type { TuiTheme } from "../theme";
 import { Surface } from "./primitives";
 
@@ -18,12 +17,12 @@ export function CommandPalette(props: { selectedIndex: number; theme: TuiTheme }
 	return (
 		<Surface bordered borderColor={props.theme.accent} theme={props.theme} title="Actions">
 			{commandPaletteActions.map((action, index) => (
-				<Box key={action.id} justifyContent="space-between">
-					<Text color={index === props.selectedIndex ? props.theme.accent : props.theme.text}>
+				<box key={action.id} flexDirection="row" justifyContent="space-between">
+					<text fg={index === props.selectedIndex ? props.theme.accent : props.theme.text}>
 						{index === props.selectedIndex ? "›" : " "} {action.label}
-					</Text>
-					<Text color={props.theme.dim}>{action.description}</Text>
-				</Box>
+					</text>
+					<text fg={props.theme.dim}>{action.description}</text>
+				</box>
 			))}
 		</Surface>
 	);

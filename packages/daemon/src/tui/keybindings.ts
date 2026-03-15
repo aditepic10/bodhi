@@ -1,5 +1,6 @@
-import type { Key } from "ink";
+import type { KeyEvent } from "@opentui/core";
 
+// ── Keybinding catalogue ──────────────────────────────────────
 export interface TuiKeybinding {
 	description: string;
 	id: string;
@@ -14,38 +15,25 @@ export const tuiKeybindings: TuiKeybinding[] = [
 	{ description: "Help", id: "help", label: "?" },
 	{ description: "Command palette", id: "commands", label: "/" },
 	{ description: "Close overlay", id: "close", label: "Esc" },
-	{ description: "Cursor home", id: "home", label: "Ctrl+A" },
-	{ description: "Cursor end", id: "end", label: "Ctrl+E" },
-	{ description: "Kill to end", id: "kill", label: "Ctrl+K" },
-	{ description: "Delete word back", id: "delword", label: "Ctrl+W" },
-	{ description: "Scroll up", id: "scrollup", label: "↑" },
-	{ description: "Scroll down", id: "scrolldown", label: "↓" },
+	{ description: "Toggle focus", id: "focus", label: "Tab" },
+	{ description: "Scroll up", id: "scrollup", label: "↑ (transcript focused)" },
+	{ description: "Scroll down", id: "scrolldown", label: "↓ (transcript focused)" },
 ];
 
-export function isEnterKey(key: Key): boolean {
-	return key.return;
+// ── Key matchers ──────────────────────────────────────────────
+
+export function isInterruptKey(key: KeyEvent): boolean {
+	return key.ctrl && key.name === "c";
 }
 
-export function isSendKey(key: Key): boolean {
-	return key.return && !key.shift;
+export function isOpenSessionsKey(key: KeyEvent): boolean {
+	return key.ctrl && key.name === "s";
 }
 
-export function isNewlineKey(key: Key): boolean {
-	return key.return && key.shift;
+export function isHelpKey(key: KeyEvent, composerEmpty: boolean): boolean {
+	return composerEmpty && !key.ctrl && !key.meta && key.name === "?";
 }
 
-export function isInterruptKey(input: string, key: Key): boolean {
-	return key.ctrl && input.toLowerCase() === "c";
-}
-
-export function isOpenSessionsKey(input: string, key: Key): boolean {
-	return key.ctrl && input.toLowerCase() === "s";
-}
-
-export function isHelpKey(input: string, _key: Key, composerEmpty: boolean): boolean {
-	return composerEmpty && input === "?";
-}
-
-export function isCommandPaletteKey(input: string, key: Key, composerEmpty: boolean): boolean {
-	return composerEmpty && !key.ctrl && !key.meta && input === "/";
+export function isCommandPaletteKey(key: KeyEvent, composerEmpty: boolean): boolean {
+	return composerEmpty && !key.ctrl && !key.meta && key.name === "/";
 }

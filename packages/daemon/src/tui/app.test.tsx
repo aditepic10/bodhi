@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { type BodhiConfig, BodhiConfigSchema } from "@bodhi/types";
-import { render } from "ink-testing-library";
-import React from "react";
+import { testRender } from "@opentui/react/test-utils";
 import type { CliRuntime, JsonObject, JsonResponse, JsonValue } from "../cli/types";
 import { BodhiTuiApp } from "./app";
 import { TuiConfigSchema } from "./config";
@@ -116,25 +115,27 @@ describe("tui app", () => {
 		const config = TuiConfigSchema.parse({});
 		const theme = resolveTuiTheme(config);
 
-		const app = render(
-			React.createElement(BodhiTuiApp, {
-				config,
-				onSessionChange(sessionId: string) {
+		const { renderer, renderOnce, captureCharFrame } = await testRender(
+			<BodhiTuiApp
+				config={config}
+				onSessionChange={(sessionId: string) => {
 					lastSessionIds.push(sessionId);
-				},
-				resumeSessionId: "resume-me",
-				runtime,
-				theme,
-			}),
+				}}
+				resumeSessionId="resume-me"
+				runtime={runtime}
+				theme={theme}
+			/>,
+			{ width: 80, height: 24 },
 		);
 
 		await runtime.sleep(25);
-		const output = app.lastFrame();
+		await renderOnce();
+		const output = captureCharFrame();
 
 		expect(output).toContain("bodhi");
 		expect(output).toContain("what is 2+2?");
 		expect(output).toContain("4");
 		expect(lastSessionIds).toEqual(["resume-me"]);
-		app.unmount();
+		renderer.destroy();
 	});
 });

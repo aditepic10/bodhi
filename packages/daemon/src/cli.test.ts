@@ -194,7 +194,10 @@ describe("cli workflows", () => {
 			"# >>> bodhi git >>>",
 		);
 		expect(readFileSync(join(root, ".claude", "settings.json"), "utf8")).toContain(
-			"bodhi internal ai-capture claude-code",
+			"internal ai-capture claude-code",
+		);
+		expect(readFileSync(join(root, ".claude", "settings.json"), "utf8")).toContain(
+			">/dev/null 2>&1 || true",
 		);
 		expect(
 			readFileSync(join(root, ".config", "opencode", "plugins", "bodhi.ts"), "utf8"),
@@ -228,7 +231,10 @@ describe("cli workflows", () => {
 		expect(existsSync(join(root, ".claude", "settings.json"))).toBe(false);
 		expect(existsSync(join(root, ".config", "opencode", "plugins", "bodhi.ts"))).toBe(false);
 		expect(readFileSync(join(repoPath, ".claude", "settings.local.json"), "utf8")).toContain(
-			"bodhi internal ai-capture claude-code",
+			"internal ai-capture claude-code",
+		);
+		expect(readFileSync(join(repoPath, ".claude", "settings.local.json"), "utf8")).toContain(
+			">/dev/null 2>&1 || true",
 		);
 		expect(readFileSync(join(repoPath, ".opencode", "plugins", "bodhi.ts"), "utf8")).toContain(
 			'["bodhi","internal","ai-capture","opencode"]',

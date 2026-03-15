@@ -1,24 +1,17 @@
 import type { ChatSession } from "@bodhi/types";
-import { Box, Text } from "ink";
 import type { TuiTheme } from "../theme";
 
 export function Header(props: { session: ChatSession | null; theme: TuiTheme }) {
-	const sessionLabel = props.session ? props.session.session_id.slice(0, 12) : "new";
 	const branch = props.session?.branch;
+	const label = branch ?? (props.session ? props.session.session_id.slice(0, 12) : "new");
 
 	return (
-		<Box>
-			<Text bold color={props.theme.text}>
-				bodhi
-			</Text>
-			<Text color={props.theme.dim}> · </Text>
-			<Text color={props.theme.accent}>{sessionLabel}</Text>
-			{branch ? (
-				<>
-					<Text color={props.theme.dim}> · </Text>
-					<Text color={props.theme.muted}>{branch}</Text>
-				</>
-			) : null}
-		</Box>
+		<box flexDirection="row">
+			<text fg={props.theme.headerBrand}>
+				<b>bodhi</b>
+			</text>
+			<text fg={props.theme.separator}> · </text>
+			<text fg={props.theme.dim}>{label}</text>
+		</box>
 	);
 }
