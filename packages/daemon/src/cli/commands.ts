@@ -11,6 +11,7 @@ import {
 	installShellHook,
 	type SupportedShell,
 } from "../capture/shell";
+import { runTui } from "../tui/run";
 import { handleAiCapture } from "./ai-capture";
 import { listChatSessions, runInteractiveChat } from "./chat";
 import {
@@ -253,20 +254,72 @@ async function handleRecall(runtime: CliRuntime, args: readonly string[]): Promi
 	return 0;
 }
 
+interface InteractiveModeOptions {
+	plain: boolean;
+	resumeSessionId?: string;
+}
+
+function parseInteractiveModeOptions(argv: readonly string[]): InteractiveModeOptions | null {
+	const options: InteractiveModeOptions = {
+		plain: false,
+	};
+
+	for (let index = 0; index < argv.length; index += 1) {
+		const arg = argv[index];
+		if (!arg) {
+			continue;
+		}
+
+		if (arg === "--plain") {
+			options.plain = true;
+			continue;
+		}
+
+		if (arg === "--resume") {
+			const sessionId = argv[index + 1];
+			if (!sessionId) {
+				return null;
+			}
+			options.resumeSessionId = sessionId;
+			index += 1;
+			continue;
+		}
+
+		return null;
+	}
+
+	return options;
+}
+
+async function runInteractiveMode(
+	runtime: CliRuntime,
+	options: InteractiveModeOptions,
+): Promise<number> {
+	if (!runtime.isInteractiveTerminal()) {
+		writeLine(runtime.stderr, "bodhi requires an interactive terminal");
+		return 1;
+	}
+
+	if (options.plain) {
+		return runInteractiveChat(runtime, { resumeSessionId: options.resumeSessionId });
+	}
+
+	return runTui(runtime, { resumeSessionId: options.resumeSessionId });
+}
+
 export async function runCli(
 	argv: readonly string[] = process.argv.slice(2),
 	runtime: CliRuntime = createCliRuntime(),
 ): Promise<number> {
+	if (argv.length === 0 || argv[0]?.startsWith("--")) {
+		const interactiveOptions = parseInteractiveModeOptions(argv);
+		if (interactiveOptions) {
+			return runInteractiveMode(runtime, interactiveOptions);
+		}
+	}
+
 	const [command, ...args] = argv;
 	switch (command) {
-		case undefined:
-			return runInteractiveChat(runtime);
-		case "--resume":
-			if (!args[0]) {
-				writeLine(runtime.stderr, "Usage: bodhi --resume <session-id>");
-				return 1;
-			}
-			return runInteractiveChat(runtime, { resumeSessionId: args[0] });
 		case "-h":
 		case "--help":
 		case "help":

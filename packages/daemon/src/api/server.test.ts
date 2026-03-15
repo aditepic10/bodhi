@@ -508,6 +508,44 @@ describe("api server workflows", () => {
 		});
 	});
 
+	test("chat session routes expose stored transcript history", async () => {
+		const { app, store } = createApiFixture();
+
+		await store.upsertChatSession({
+			cwd: "/work/bodhi",
+			session_id: "chat-session-history",
+		});
+		await store.appendMessage("user", "what is 2+2?", "chat-session-history");
+		await store.appendMessage("assistant", "4", "chat-session-history", {
+			content_json: JSON.stringify([{ text: "4", type: "text" }]),
+			status: "complete",
+		});
+
+		const response = await app.request(
+			"http://localhost/chat/sessions/chat-session-history/messages",
+		);
+		const body = (await response.json()) as {
+			messages: Array<{
+				content: string;
+				role: string;
+				status: string;
+			}>;
+		};
+
+		expect(response.status).toBe(200);
+		expect(body.messages).toHaveLength(2);
+		expect(body.messages[0]).toMatchObject({
+			content: "what is 2+2?",
+			role: "user",
+			status: "complete",
+		});
+		expect(body.messages[1]).toMatchObject({
+			content: "4",
+			role: "assistant",
+			status: "complete",
+		});
+	});
+
 	test("serve config disables idle timeouts for both unix and tcp transports", () => {
 		const unixConfig = BodhiConfigSchema.parse({
 			config_dir: "/tmp/bodhi-unix",

@@ -65,6 +65,9 @@ export function createCliRuntime(): CliRuntime {
 		cwd() {
 			return process.cwd();
 		},
+		isInteractiveTerminal() {
+			return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+		},
 		isProcessAlive(pid: number) {
 			try {
 				process.kill(pid, 0);
@@ -81,15 +84,7 @@ export function createCliRuntime(): CliRuntime {
 			};
 		},
 		readStdin() {
-			return new Promise((resolve, reject) => {
-				let data = "";
-				process.stdin.setEncoding("utf8");
-				process.stdin.on("data", (chunk) => {
-					data += chunk;
-				});
-				process.stdin.on("end", () => resolve(data));
-				process.stdin.on("error", reject);
-			});
+			return new Response(Bun.stdin.stream()).text();
 		},
 		requestJson,
 		requestSse,

@@ -58,6 +58,7 @@ export interface CliRuntime {
 	commandExists(command: string): boolean;
 	createLineReader(): CliLineReader;
 	cwd(): string;
+	isInteractiveTerminal(): boolean;
 	isProcessAlive(pid: number): boolean;
 	loadConfig(overrides?: Record<string, unknown>): BodhiConfig;
 	onSignal(signal: NodeJS.Signals, handler: () => void): () => void;

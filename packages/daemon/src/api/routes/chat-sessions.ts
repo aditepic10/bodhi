@@ -52,4 +52,15 @@ export function registerChatSessionsRoute(app: Hono, api: ApiContext): void {
 
 		return c.json({ session });
 	});
+
+	app.get("/chat/sessions/:sessionId/messages", async (c) => {
+		const sessionId = c.req.param("sessionId");
+		const session = await api.store.getChatSession(sessionId);
+		if (!session) {
+			return jsonError(c, 404, "SESSION_NOT_FOUND", "chat session not found");
+		}
+
+		const messages = await api.store.getConversation(sessionId);
+		return c.json({ messages });
+	});
 }

@@ -75,6 +75,9 @@ function createRuntime(
 		cwd() {
 			return process.cwd();
 		},
+		isInteractiveTerminal() {
+			return true;
+		},
 		isProcessAlive() {
 			return false;
 		},
@@ -298,7 +301,7 @@ describe("cli workflows", () => {
 		expect(stdout).toBe("hello world\n");
 	});
 
-	test("bare bodhi starts a new chat session and prints an exact resume command on exit", async () => {
+	test("plain chat starts a new chat session and prints an exact resume command on exit", async () => {
 		const root = makeTempDir();
 		const config = makeConfig(root);
 		const requests: Array<{ method?: string; path: string; body?: JsonObject }> = [];
@@ -341,7 +344,7 @@ describe("cli workflows", () => {
 			},
 		});
 
-		const exitCode = await runCli([], runtime);
+		const exitCode = await runCli(["--plain"], runtime);
 		const { stdout } = runtime._buffers.text();
 
 		expect(exitCode).toBe(0);
@@ -366,7 +369,7 @@ describe("cli workflows", () => {
 		expect(stdout).toContain("bodhi --resume chat-session-1");
 	});
 
-	test("resume loads an exact chat session before entering chat mode", async () => {
+	test("plain resume loads an exact chat session before entering chat mode", async () => {
 		const root = makeTempDir();
 		const config = makeConfig(root);
 		const requests: string[] = [];
@@ -399,12 +402,28 @@ describe("cli workflows", () => {
 			throw new Error(`unexpected path ${path}`);
 		};
 
-		const exitCode = await runCli(["--resume", "resume-me"], runtime);
+		const exitCode = await runCli(["--plain", "--resume", "resume-me"], runtime);
 		const { stdout } = runtime._buffers.text();
 
 		expect(exitCode).toBe(0);
 		expect(requests).toEqual(["/chat/sessions/resume-me"]);
 		expect(stdout).toContain("bodhi --resume resume-me");
+	});
+
+	test("interactive mode errors clearly without a TTY", async () => {
+		const root = makeTempDir();
+		const config = makeConfig(root);
+		const runtime = createRuntime(config, {
+			isInteractiveTerminal() {
+				return false;
+			},
+		});
+
+		const exitCode = await runCli([], runtime);
+		const { stderr } = runtime._buffers.text();
+
+		expect(exitCode).toBe(1);
+		expect(stderr).toContain("interactive terminal");
 	});
 
 	test("sessions lists workspace-prioritized chat sessions", async () => {

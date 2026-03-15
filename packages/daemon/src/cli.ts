@@ -7,7 +7,10 @@ export type { CliRuntime } from "./cli/types";
 
 async function main(): Promise<void> {
 	try {
-		process.exit(await runCli());
+		const code = await runCli();
+		if (code !== 0) {
+			process.exit(code);
+		}
 	} catch (error) {
 		process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
 		process.exit(1);

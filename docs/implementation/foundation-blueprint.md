@@ -270,6 +270,13 @@ The TUI should come after the stronger chat substrate is implemented:
 - message-oriented chat storage/runtime contract
 - TUI-friendly chat streaming semantics
 
+The next UI phase should follow the dedicated plan in [tui-phase-1-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/tui-phase-1-blueprint.md):
+
+- bare `bodhi` launches a full-screen TUI in interactive terminals
+- `bodhi --plain` remains the fallback/debug path
+- the TUI is a client over `/chat` and `/chat/sessions`, not a new backend
+- built-in tool renderers and session UX are part of phase 1, not later polish
+
 ### Later derived memory and insights
 
 After workflow retrieval is strong, Bodhi should add broader higher-level value on top of the same substrate:

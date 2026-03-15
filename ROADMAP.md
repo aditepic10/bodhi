@@ -111,9 +111,14 @@ Chat substrate:
 ## Phase 7
 
 First workflows and clients:
+- detailed implementation blueprint in [tui-phase-1-blueprint.md](/Users/aditpareek/Documents/bodhi/docs/implementation/tui-phase-1-blueprint.md)
+- full-screen TUI as the default interactive `bodhi` surface in TTYs
+- explicit plain fallback for non-interactive terminals and debugging
+- dedicated renderers for built-in chat tools and session-aware transcript UX
+- themes, keybinds, overlays, and premium terminal interaction polish
 - `bodhi standup`
 - `bodhi resume [branch]`
-- TUI once the chat substrate and retrieval feel trustworthy
+- ship the TUI only because the chat substrate and retrieval are now trustworthy enough to support it
 - facts review workflow
 - export path
 - `bodhi doctor` improvements
@@ -170,6 +175,6 @@ Operational hardening and extensions:
 1. Finish Git lifecycle capture as the first authoritative post-shell signal layer.
 2. Add terminal AI prompts and tool calls as the next major intent signal.
 3. Improve retrieval and intel quality before packaging workflows.
-4. Expose persistent CLI chat before building a TUI.
+4. Build the full-screen TUI over the existing chat substrate before layering on workflow chrome.
 5. Build `standup` and `resume` only after shell + git + AI capture are flowing together.
 6. Harden operations after the substrate and workflows are proven.
